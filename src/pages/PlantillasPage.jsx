@@ -39,6 +39,7 @@ const PlantillasPage = () => {
     productos: [],
   })
   const [productSearch, setProductSearch] = useState("")
+  const [displayedProductsCount, setDisplayedProductsCount] = useState(10)
   const [selectedProducts, setSelectedProducts] = useState([])
   const [tempCantidad, setTempCantidad] = useState({})
 
@@ -160,8 +161,16 @@ const PlantillasPage = () => {
     )
   }
 
+  const handleLoadMore = () => {
+    setDisplayedProductsCount((prev) => prev + 10)
+  }
+
+  const handleProductSearchChange = (e) => {
+    setProductSearch(e.target.value)
+    setDisplayedProductsCount(10) // Resetear a 10 cuando cambia la búsqueda
+  }
+
   const getFilteredProducts = () => {
-    // Si no hay búsqueda, no mostrar productos
     if (!productSearch || productSearch.trim().length < 2) {
       return []
     }
@@ -174,11 +183,12 @@ const PlantillasPage = () => {
         p.categoria?.toLowerCase().includes(searchLower),
     )
 
-    // <CHANGE> Removida la limitación de 10 resultados para mostrar todos los productos que coincidan
     return filtered
   }
 
   const filteredProducts = getFilteredProducts()
+  const displayedProducts = filteredProducts.slice(0, displayedProductsCount)
+  const hasMoreProducts = filteredProducts.length > displayedProductsCount
 
   return (
     <Container maxWidth="lg" sx={{ py: { xs: 2, sm: 3 }, pb: 10 }}>
@@ -306,7 +316,6 @@ const PlantillasPage = () => {
         </>
       )}
 
-      {/* Dialog para crear/editar plantilla */}
       <Dialog open={openDialog} onClose={handleCloseDialog} maxWidth="md" fullWidth>
         <DialogTitle>
           <Box sx={{ display: "flex", justifyContent: "space-between", alignItems: "center" }}>
@@ -414,7 +423,6 @@ const PlantillasPage = () => {
         </DialogActions>
       </Dialog>
 
-      {/* Dialog para seleccionar productos */}
       <Dialog open={openProductDialog} onClose={handleCloseProductDialog} maxWidth="md" fullWidth>
         <DialogTitle>
           <Box sx={{ display: "flex", justifyContent: "space-between", alignItems: "center" }}>
@@ -434,7 +442,7 @@ const PlantillasPage = () => {
               fullWidth
               placeholder="Buscar productos..."
               value={productSearch}
-              onChange={(e) => setProductSearch(e.target.value)}
+              onChange={handleProductSearchChange}
               autoFocus
               InputProps={{
                 startAdornment: (
@@ -454,9 +462,9 @@ const PlantillasPage = () => {
             ) : (
               <Box>
                 <Typography variant="body2" color="text.secondary" sx={{ mb: 1 }}>
-                  {filteredProducts.length} resultado(s) encontrado(s)
+                  Mostrando {displayedProducts.length} de {filteredProducts.length} resultado(s)
                 </Typography>
-                {filteredProducts.map((product) => {
+                {displayedProducts.map((product) => {
                   const isSelected = selectedProducts.find((p) => p.productoId === product.id)
                   return (
                     <Card key={product.id} sx={{ mb: 1, bgcolor: isSelected ? "action.selected" : "background.paper" }}>
@@ -499,6 +507,13 @@ const PlantillasPage = () => {
                     </Card>
                   )
                 })}
+                {hasMoreProducts && (
+                  <Box sx={{ display: "flex", justifyContent: "center", mt: 2 }}>
+                    <Button variant="outlined" onClick={handleLoadMore} fullWidth sx={{ maxWidth: 300 }}>
+                      Ver más ({filteredProducts.length - displayedProductsCount} restantes)
+                    </Button>
+                  </Box>
+                )}
               </Box>
             )}
           </Box>
