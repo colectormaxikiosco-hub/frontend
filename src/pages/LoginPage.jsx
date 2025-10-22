@@ -170,33 +170,7 @@ const LoginPage = () => {
             </Button>
           </Box>
 
-          <Box sx={{ mt: 3, p: 2, backgroundColor: "#f5f5f5", borderRadius: 2 }}>
-            <Typography
-              variant="caption"
-              color="text.secondary"
-              display="block"
-              gutterBottom
-              sx={{ fontSize: { xs: "0.75rem", sm: "0.688rem" } }}
-            >
-              <strong>Usuarios de prueba:</strong>
-            </Typography>
-            <Typography
-              variant="caption"
-              color="text.secondary"
-              display="block"
-              sx={{ fontSize: { xs: "0.75rem", sm: "0.688rem" } }}
-            >
-              Admin: admin / admin123
-            </Typography>
-            <Typography
-              variant="caption"
-              color="text.secondary"
-              display="block"
-              sx={{ fontSize: { xs: "0.75rem", sm: "0.688rem" } }}
-            >
-              Empleado: empleado1 / emp123
-            </Typography>
-          </Box>
+          
         </Paper>
       </Container>
     </Box>
