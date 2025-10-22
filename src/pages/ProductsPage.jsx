@@ -276,15 +276,6 @@ const ProductsPage = () => {
           >
             Importar
           </Button>
-          <Button
-            variant="outlined"
-            color="error"
-            startIcon={<DeleteSweep />}
-            onClick={() => setDeleteAllDialog(true)}
-            disabled={products.length === 0}
-          >
-            Borrar Todo
-          </Button>
         </Box>
 
         <Menu anchorEl={anchorEl} open={Boolean(anchorEl)} onClose={handleMenuClose}>
