@@ -54,12 +54,20 @@ const ConteoPage = () => {
   const [rowsPerPagePlantilla, setRowsPerPagePlantilla] = useState(10)
   const [openReminderDialog, setOpenReminderDialog] = useState(false)
   const [plantillaToSelect, setPlantillaToSelect] = useState(null)
+  const [isLeavingIntentionally, setIsLeavingIntentionally] = useState(false)
 
   useEffect(() => {
-    const handleBeforeUnload = (e) => {
-      if (conteoActivo) {
+    const handleBeforeUnload = async (e) => {
+      if (conteoActivo && !isLeavingIntentionally) {
         e.preventDefault()
         e.returnValue = ""
+
+        // Attempt to cancel the count on force close (limited by browser)
+        try {
+          await conteoService.delete(conteoActivo.id)
+        } catch (error) {
+          console.error("[v0] Error al cancelar conteo en cierre forzado:", error)
+        }
       }
     }
 
@@ -68,7 +76,27 @@ const ConteoPage = () => {
     return () => {
       window.removeEventListener("beforeunload", handleBeforeUnload)
     }
-  }, [conteoActivo])
+  }, [conteoActivo, isLeavingIntentionally])
+
+  useEffect(() => {
+    if (!conteoActivo) return
+
+    const handlePopState = (e) => {
+      if (conteoActivo && !isLeavingIntentionally) {
+        e.preventDefault()
+        window.history.pushState(null, "", window.location.pathname)
+        setOpenExitDialog(true)
+      }
+    }
+
+    // Push current state to enable back button interception
+    window.history.pushState(null, "", window.location.pathname)
+    window.addEventListener("popstate", handlePopState)
+
+    return () => {
+      window.removeEventListener("popstate", handlePopState)
+    }
+  }, [conteoActivo, isLeavingIntentionally])
 
   const handleSelectPlantilla = (plantilla) => {
     setPlantillaToSelect(plantilla)
@@ -86,6 +114,7 @@ const ConteoPage = () => {
 
       setConteoActivo(conteoCompleto)
       setProductosConteo(conteoCompleto.productos || [])
+      setIsLeavingIntentionally(false)
 
       setSnackbar({
         open: true,
@@ -166,6 +195,7 @@ const ConteoPage = () => {
     if (window.confirm("¿Está seguro de finalizar el conteo?")) {
       try {
         setLoading(true)
+        setIsLeavingIntentionally(true)
         await conteoService.finalize(conteoActivo.id)
 
         setSnackbar({
@@ -184,6 +214,7 @@ const ConteoPage = () => {
           message: "Error al finalizar el conteo",
           severity: "error",
         })
+        setIsLeavingIntentionally(false)
       } finally {
         setLoading(false)
       }
@@ -193,6 +224,7 @@ const ConteoPage = () => {
   const handleCancelarConteo = async () => {
     try {
       setLoading(true)
+      setIsLeavingIntentionally(true)
       await conteoService.delete(conteoActivo.id)
 
       setSnackbar({
@@ -217,12 +249,15 @@ const ConteoPage = () => {
         message: "Error al cancelar el conteo",
         severity: "error",
       })
+      setIsLeavingIntentionally(false)
     } finally {
       setLoading(false)
     }
   }
 
   const handleDejarPendiente = () => {
+    setIsLeavingIntentionally(true)
+
     setSnackbar({
       open: true,
       message: "Conteo guardado como pendiente",
@@ -238,10 +273,6 @@ const ConteoPage = () => {
       navigate(pendingNavigation)
       setPendingNavigation(null)
     }
-  }
-
-  const handleOpenExitDialog = () => {
-    setOpenExitDialog(true)
   }
 
   const plantillasFiltradas = plantillas.filter((plantilla) =>
@@ -473,7 +504,7 @@ const ConteoPage = () => {
         }}
       />
 
-      <Box sx={{ display: "flex", gap: 1, mb: 2 }}>
+      <Box sx={{ mb: 3 }}>
         <Button
           variant="contained"
           color="success"
@@ -485,33 +516,6 @@ const ConteoPage = () => {
           sx={{ minHeight: { xs: 56, sm: 48 }, fontSize: { xs: "1rem", sm: "0.938rem" } }}
         >
           Finalizar Conteo
-        </Button>
-      </Box>
-
-      <Box sx={{ display: "flex", gap: 1, mb: 3 }}>
-        <Button
-          variant="outlined"
-          color="warning"
-          startIcon={<ExitToApp />}
-          onClick={handleOpenExitDialog}
-          fullWidth
-          size="large"
-          disabled={loading}
-          sx={{ minHeight: { xs: 56, sm: 48 }, fontSize: { xs: "1rem", sm: "0.938rem" } }}
-        >
-          Salir
-        </Button>
-        <Button
-          variant="outlined"
-          color="error"
-          startIcon={<Cancel />}
-          onClick={handleCancelarConteo}
-          fullWidth
-          size="large"
-          disabled={loading}
-          sx={{ minHeight: { xs: 56, sm: 48 }, fontSize: { xs: "1rem", sm: "0.938rem" } }}
-        >
-          Cancelar Conteo
         </Button>
       </Box>
 
@@ -621,15 +625,39 @@ const ConteoPage = () => {
         ))}
       </Box>
 
-      <Dialog open={openExitDialog} onClose={() => setOpenExitDialog(false)} maxWidth="sm" fullWidth>
-        <DialogTitle>¿Qué desea hacer con el conteo?</DialogTitle>
+      <Dialog
+        open={openExitDialog}
+        onClose={() => setOpenExitDialog(false)}
+        maxWidth="sm"
+        fullWidth
+        disableEscapeKeyDown
+      >
+        <DialogTitle sx={{ fontSize: { xs: "1.125rem", sm: "1.25rem" } }}>¿Qué desea hacer con el conteo?</DialogTitle>
         <DialogContent>
           <Alert severity="warning" sx={{ mb: 2 }}>
-            Está saliendo del conteo en progreso
+            Está intentando salir del conteo en progreso
           </Alert>
-          <Typography variant="body2" gutterBottom>
-            Puede cancelar el conteo (se eliminará) o dejarlo como pendiente para continuar después.
+          <Typography variant="body2" gutterBottom sx={{ mb: 2, fontSize: { xs: "0.875rem", sm: "0.938rem" } }}>
+            Elija una de las siguientes opciones:
           </Typography>
+          <Box sx={{ display: "flex", flexDirection: "column", gap: 1.5 }}>
+            <Paper sx={{ p: 2, bgcolor: "error.50", border: "1px solid", borderColor: "error.light" }}>
+              <Typography variant="subtitle2" fontWeight="bold" color="error.main" gutterBottom>
+                Cancelar Conteo
+              </Typography>
+              <Typography variant="caption" color="text.secondary">
+                El conteo será eliminado permanentemente y no aparecerá en el historial.
+              </Typography>
+            </Paper>
+            <Paper sx={{ p: 2, bgcolor: "warning.50", border: "1px solid", borderColor: "warning.light" }}>
+              <Typography variant="subtitle2" fontWeight="bold" color="warning.main" gutterBottom>
+                Guardar como Pendiente
+              </Typography>
+              <Typography variant="caption" color="text.secondary">
+                El conteo se guardará y podrá continuarlo más tarde desde el historial.
+              </Typography>
+            </Paper>
+          </Box>
         </DialogContent>
         <DialogActions sx={{ flexDirection: "column", gap: 1, p: 2 }}>
           <Button
@@ -652,10 +680,15 @@ const ConteoPage = () => {
             disabled={loading}
             sx={{ minHeight: { xs: 56, sm: 48 }, fontSize: { xs: "1rem", sm: "0.938rem" } }}
           >
-            Dejar como Pendiente
+            Guardar como Pendiente
           </Button>
-          <Button variant="outlined" onClick={() => setOpenExitDialog(false)} fullWidth>
-            Volver al Conteo
+          <Button
+            variant="outlined"
+            onClick={() => setOpenExitDialog(false)}
+            fullWidth
+            sx={{ minHeight: { xs: 48, sm: 42 } }}
+          >
+            Continuar Conteo
           </Button>
         </DialogActions>
       </Dialog>
