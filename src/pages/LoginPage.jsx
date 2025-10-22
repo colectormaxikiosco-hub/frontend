@@ -56,14 +56,14 @@ const LoginPage = () => {
         alignItems: "center",
         justifyContent: "center",
         background: "linear-gradient(135deg, #1976d2 0%, #1565c0 100%)",
-        padding: 2,
+        padding: { xs: 2, sm: 2 },
       }}
     >
       <Container maxWidth="xs">
         <Paper
           elevation={6}
           sx={{
-            padding: 4,
+            padding: { xs: 3, sm: 4 },
             borderRadius: 3,
             backgroundColor: "white",
           }}
@@ -74,19 +74,25 @@ const LoginPage = () => {
                 display: "inline-flex",
                 alignItems: "center",
                 justifyContent: "center",
-                width: 80,
-                height: 80,
+                width: { xs: 70, sm: 80 },
+                height: { xs: 70, sm: 80 },
                 borderRadius: "50%",
                 backgroundColor: "#1976d2",
                 mb: 2,
               }}
             >
-              <Inventory sx={{ fontSize: 40, color: "white" }} />
+              <Inventory sx={{ fontSize: { xs: 36, sm: 40 }, color: "white" }} />
             </Box>
-            <Typography variant="h5" fontWeight="bold" color="primary" gutterBottom>
+            <Typography
+              variant="h5"
+              fontWeight="bold"
+              color="primary"
+              gutterBottom
+              sx={{ fontSize: { xs: "1.25rem", sm: "1.5rem" } }}
+            >
               Colector de Datos
             </Typography>
-            <Typography variant="body2" color="text.secondary">
+            <Typography variant="body2" color="text.secondary" sx={{ fontSize: { xs: "0.813rem", sm: "0.875rem" } }}>
               Sistema de Gestión de Almacén
             </Typography>
           </Box>
@@ -106,6 +112,15 @@ const LoginPage = () => {
               onChange={(e) => setUsername(e.target.value)}
               autoComplete="username"
               autoFocus
+              sx={{
+                "& .MuiInputBase-input": {
+                  fontSize: { xs: "1rem", sm: "1rem" },
+                  py: { xs: 1.75, sm: 1.5 },
+                },
+                "& .MuiInputLabel-root": {
+                  fontSize: { xs: "1rem", sm: "1rem" },
+                },
+              }}
             />
 
             <TextField
@@ -125,6 +140,15 @@ const LoginPage = () => {
                   </InputAdornment>
                 ),
               }}
+              sx={{
+                "& .MuiInputBase-input": {
+                  fontSize: { xs: "1rem", sm: "1rem" },
+                  py: { xs: 1.75, sm: 1.5 },
+                },
+                "& .MuiInputLabel-root": {
+                  fontSize: { xs: "1rem", sm: "1rem" },
+                },
+              }}
             />
 
             <Button
@@ -136,13 +160,42 @@ const LoginPage = () => {
               startIcon={<LoginIcon />}
               sx={{
                 mt: 1,
-                py: 1.5,
-                fontSize: "1rem",
+                py: { xs: 2, sm: 1.5 },
+                fontSize: { xs: "1.063rem", sm: "1rem" },
                 fontWeight: 600,
+                minHeight: { xs: 56, sm: 48 },
               }}
             >
               {loading ? "Iniciando sesión..." : "Iniciar Sesión"}
             </Button>
+          </Box>
+
+          <Box sx={{ mt: 3, p: 2, backgroundColor: "#f5f5f5", borderRadius: 2 }}>
+            <Typography
+              variant="caption"
+              color="text.secondary"
+              display="block"
+              gutterBottom
+              sx={{ fontSize: { xs: "0.75rem", sm: "0.688rem" } }}
+            >
+              <strong>Usuarios de prueba:</strong>
+            </Typography>
+            <Typography
+              variant="caption"
+              color="text.secondary"
+              display="block"
+              sx={{ fontSize: { xs: "0.75rem", sm: "0.688rem" } }}
+            >
+              Admin: admin / admin123
+            </Typography>
+            <Typography
+              variant="caption"
+              color="text.secondary"
+              display="block"
+              sx={{ fontSize: { xs: "0.75rem", sm: "0.688rem" } }}
+            >
+              Empleado: empleado1 / emp123
+            </Typography>
           </Box>
         </Paper>
       </Container>

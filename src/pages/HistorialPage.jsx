@@ -139,12 +139,12 @@ const HistorialPage = () => {
   const conteosPaginados = conteosFiltrados.slice(page * rowsPerPage, page * rowsPerPage + rowsPerPage)
 
   return (
-    <Container maxWidth="lg" sx={{ py: 3, pb: 10 }}>
-      <Box sx={{ mb: 3 }}>
-        <Typography variant="h5" fontWeight="bold" gutterBottom>
+    <Container maxWidth="lg" sx={{ py: { xs: 2, sm: 3 }, pb: 10 }}>
+      <Box sx={{ mb: { xs: 2, sm: 3 } }}>
+        <Typography variant="h5" fontWeight="bold" gutterBottom sx={{ fontSize: { xs: "1.25rem", sm: "1.5rem" } }}>
           Historial de Conteos
         </Typography>
-        <Typography variant="body2" color="text.secondary">
+        <Typography variant="body2" color="text.secondary" sx={{ fontSize: { xs: "0.813rem", sm: "0.875rem" } }}>
           Registro de todos los conteos realizados
         </Typography>
       </Box>
@@ -153,10 +153,10 @@ const HistorialPage = () => {
         <Alert severity="info">No hay conteos registrados</Alert>
       ) : (
         <>
-          <Paper sx={{ p: 2, mb: 2 }}>
+          <Paper sx={{ p: { xs: 2, sm: 2 }, mb: 2 }}>
             <Box sx={{ display: "flex", alignItems: "center", gap: 1, mb: 2 }}>
               <FilterList color="primary" />
-              <Typography variant="subtitle2" fontWeight="bold">
+              <Typography variant="subtitle2" fontWeight="bold" sx={{ fontSize: { xs: "0.938rem", sm: "1rem" } }}>
                 Filtros de búsqueda
               </Typography>
             </Box>
@@ -177,6 +177,12 @@ const HistorialPage = () => {
                     </InputAdornment>
                   ),
                 }}
+                sx={{
+                  "& .MuiInputBase-input": {
+                    fontSize: { xs: "0.938rem", sm: "0.875rem" },
+                    py: { xs: 1.5, sm: 1 },
+                  },
+                }}
               />
               <TextField
                 fullWidth
@@ -194,6 +200,12 @@ const HistorialPage = () => {
                     </InputAdornment>
                   ),
                 }}
+                sx={{
+                  "& .MuiInputBase-input": {
+                    fontSize: { xs: "0.938rem", sm: "0.875rem" },
+                    py: { xs: 1.5, sm: 1 },
+                  },
+                }}
               />
               <TextField
                 fullWidth
@@ -208,6 +220,12 @@ const HistorialPage = () => {
                 InputLabelProps={{
                   shrink: true,
                 }}
+                sx={{
+                  "& .MuiInputBase-input": {
+                    fontSize: { xs: "0.938rem", sm: "0.875rem" },
+                    py: { xs: 1.5, sm: 1 },
+                  },
+                }}
               />
               {(searchPlantilla || searchUsuario || searchFecha) && (
                 <Button
@@ -218,6 +236,7 @@ const HistorialPage = () => {
                     setSearchFecha("")
                     setPage(0)
                   }}
+                  sx={{ fontSize: { xs: "0.875rem", sm: "0.813rem" } }}
                 >
                   Limpiar filtros
                 </Button>
@@ -233,16 +252,31 @@ const HistorialPage = () => {
                 {conteosPaginados.map((conteo) => {
                   return (
                     <Card key={conteo.id} sx={{ cursor: "pointer" }}>
-                      <CardContent onClick={() => handleOpenDetail(conteo)}>
+                      <CardContent onClick={() => handleOpenDetail(conteo)} sx={{ p: { xs: 2, sm: 2 } }}>
                         <Box sx={{ display: "flex", justifyContent: "space-between", alignItems: "flex-start" }}>
                           <Box sx={{ flex: 1 }}>
-                            <Typography variant="subtitle1" fontWeight="bold">
+                            <Typography
+                              variant="subtitle1"
+                              fontWeight="bold"
+                              sx={{ fontSize: { xs: "1rem", sm: "1.125rem" } }}
+                            >
                               {conteo.plantilla_nombre}
                             </Typography>
-                            <Typography variant="caption" color="text.secondary" display="block">
+                            <Typography
+                              variant="caption"
+                              color="text.secondary"
+                              display="block"
+                              sx={{ fontSize: { xs: "0.75rem", sm: "0.688rem" } }}
+                            >
                               Usuario: {conteo.usuario_nombre}
                             </Typography>
-                            <Typography variant="caption" color="text.secondary" display="block" gutterBottom>
+                            <Typography
+                              variant="caption"
+                              color="text.secondary"
+                              display="block"
+                              gutterBottom
+                              sx={{ fontSize: { xs: "0.75rem", sm: "0.688rem" } }}
+                            >
                               Fecha: {formatDate(conteo.fecha_inicio)}
                             </Typography>
                             <Box sx={{ display: "flex", gap: 1, mt: 2, flexWrap: "wrap" }}>
@@ -251,16 +285,23 @@ const HistorialPage = () => {
                                 size="small"
                                 color="primary"
                                 variant="outlined"
+                                sx={{ fontSize: { xs: "0.75rem", sm: "0.688rem" } }}
                               />
                               <Chip
                                 label={conteo.estado === "finalizado" ? "Finalizado" : "En progreso"}
                                 size="small"
                                 color={conteo.estado === "finalizado" ? "success" : "warning"}
+                                sx={{ fontSize: { xs: "0.75rem", sm: "0.688rem" } }}
                               />
                             </Box>
                           </Box>
-                          <IconButton color="error" onClick={(e) => handleOpenDeleteDialog(conteo, e)} size="small">
-                            <Delete />
+                          <IconButton
+                            color="error"
+                            onClick={(e) => handleOpenDeleteDialog(conteo, e)}
+                            size="small"
+                            sx={{ p: { xs: 1, sm: 0.5 } }}
+                          >
+                            <Delete sx={{ fontSize: { xs: "1.25rem", sm: "1.125rem" } }} />
                           </IconButton>
                         </Box>
                       </CardContent>
@@ -280,6 +321,11 @@ const HistorialPage = () => {
                   rowsPerPageOptions={[10, 25, 50]}
                   labelRowsPerPage="Conteos por página:"
                   labelDisplayedRows={({ from, to, count }) => `${from}-${to} de ${count}`}
+                  sx={{
+                    ".MuiTablePagination-selectLabel, .MuiTablePagination-displayedRows": {
+                      fontSize: { xs: "0.813rem", sm: "0.875rem" },
+                    },
+                  }}
                 />
               </Paper>
             </>

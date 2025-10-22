@@ -181,12 +181,12 @@ const PlantillasPage = () => {
   const filteredProducts = getFilteredProducts()
 
   return (
-    <Container maxWidth="lg" sx={{ py: 3 }}>
-      <Box sx={{ mb: 3 }}>
-        <Typography variant="h5" fontWeight="bold" gutterBottom>
+    <Container maxWidth="lg" sx={{ py: { xs: 2, sm: 3 }, pb: 10 }}>
+      <Box sx={{ mb: { xs: 2, sm: 3 } }}>
+        <Typography variant="h5" fontWeight="bold" gutterBottom sx={{ fontSize: { xs: "1.25rem", sm: "1.5rem" } }}>
           Plantillas
         </Typography>
-        <Typography variant="body2" color="text.secondary">
+        <Typography variant="body2" color="text.secondary" sx={{ fontSize: { xs: "0.813rem", sm: "0.875rem" } }}>
           Gestión de plantillas para conteo
         </Typography>
       </Box>
@@ -207,8 +207,21 @@ const PlantillasPage = () => {
               </InputAdornment>
             ),
           }}
+          sx={{
+            "& .MuiInputBase-input": {
+              fontSize: { xs: "0.938rem", sm: "1rem" },
+              py: { xs: 1.5, sm: 2 },
+            },
+          }}
         />
-        <Button variant="contained" startIcon={<Add />} onClick={() => handleOpenDialog()} fullWidth>
+        <Button
+          variant="contained"
+          startIcon={<Add />}
+          onClick={() => handleOpenDialog()}
+          fullWidth
+          size="large"
+          sx={{ minHeight: { xs: 48, sm: 42 }, fontSize: { xs: "0.938rem", sm: "0.875rem" } }}
+        >
           Nueva Plantilla
         </Button>
       </Box>
@@ -221,13 +234,22 @@ const PlantillasPage = () => {
             {paginatedPlantillas.map((plantilla) => (
               <Grid item xs={12} key={plantilla.id}>
                 <Card>
-                  <CardContent>
+                  <CardContent sx={{ p: { xs: 2, sm: 2 } }}>
                     <Box sx={{ display: "flex", justifyContent: "space-between", alignItems: "flex-start" }}>
                       <Box sx={{ flexGrow: 1 }}>
-                        <Typography variant="subtitle1" fontWeight="bold">
+                        <Typography
+                          variant="subtitle1"
+                          fontWeight="bold"
+                          sx={{ fontSize: { xs: "1rem", sm: "1.125rem" } }}
+                        >
                           {plantilla.nombre}
                         </Typography>
-                        <Typography variant="body2" color="text.secondary" gutterBottom>
+                        <Typography
+                          variant="body2"
+                          color="text.secondary"
+                          gutterBottom
+                          sx={{ fontSize: { xs: "0.813rem", sm: "0.875rem" } }}
+                        >
                           {plantilla.descripcion}
                         </Typography>
                         <Chip
@@ -235,15 +257,25 @@ const PlantillasPage = () => {
                           size="small"
                           color="primary"
                           variant="outlined"
-                          sx={{ mt: 1 }}
+                          sx={{ mt: 1, fontSize: { xs: "0.75rem", sm: "0.688rem" } }}
                         />
                       </Box>
                       <Box sx={{ display: "flex", gap: 0.5 }}>
-                        <IconButton size="small" color="primary" onClick={() => handleOpenDialog(plantilla)}>
-                          <Edit />
+                        <IconButton
+                          size="small"
+                          color="primary"
+                          onClick={() => handleOpenDialog(plantilla)}
+                          sx={{ p: { xs: 1, sm: 0.5 } }}
+                        >
+                          <Edit sx={{ fontSize: { xs: "1.25rem", sm: "1.125rem" } }} />
                         </IconButton>
-                        <IconButton size="small" color="error" onClick={() => handleDelete(plantilla.id)}>
-                          <Delete />
+                        <IconButton
+                          size="small"
+                          color="error"
+                          onClick={() => handleDelete(plantilla.id)}
+                          sx={{ p: { xs: 1, sm: 0.5 } }}
+                        >
+                          <Delete sx={{ fontSize: { xs: "1.25rem", sm: "1.125rem" } }} />
                         </IconButton>
                       </Box>
                     </Box>
@@ -264,6 +296,11 @@ const PlantillasPage = () => {
               rowsPerPageOptions={[10, 25, 50]}
               labelRowsPerPage="Plantillas por página:"
               labelDisplayedRows={({ from, to, count }) => `${from}-${to} de ${count}`}
+              sx={{
+                ".MuiTablePagination-selectLabel, .MuiTablePagination-displayedRows": {
+                  fontSize: { xs: "0.813rem", sm: "0.875rem" },
+                },
+              }}
             />
           </Paper>
         </>
