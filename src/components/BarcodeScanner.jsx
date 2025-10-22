@@ -12,6 +12,7 @@ const BarcodeScanner = ({ onScan, onClose }) => {
   const [loading, setLoading] = useState(false)
   const [cameraId, setCameraId] = useState(null)
   const html5QrCodeRef = useRef(null)
+  const scannerInitialized = useRef(false)
 
   useEffect(() => {
     return () => {
@@ -21,11 +22,14 @@ const BarcodeScanner = ({ onScan, onClose }) => {
 
   const checkCameraSupport = async () => {
     try {
+      console.log("[v0] Verificando soporte de cámara...")
+
       if (!navigator.mediaDevices || !navigator.mediaDevices.getUserMedia) {
         throw new Error("Su navegador no soporta acceso a la cámara")
       }
 
       const devices = await Html5Qrcode.getCameras()
+      console.log("[v0] Cámaras encontradas:", devices)
 
       if (!devices || devices.length === 0) {
         throw new Error("No se encontraron cámaras en el dispositivo")
@@ -39,38 +43,51 @@ const BarcodeScanner = ({ onScan, onClose }) => {
           device.label.toLowerCase().includes("environment"),
       )
 
-      return backCamera ? backCamera.id : devices[0].id
+      const selectedId = backCamera ? backCamera.id : devices[0].id
+      console.log("[v0] Cámara seleccionada:", selectedId)
+      return selectedId
     } catch (err) {
-      console.error("Error al verificar cámaras:", err)
+      console.error("[v0] Error al verificar cámaras:", err)
       throw err
     }
   }
 
   const startScanning = async () => {
     try {
+      console.log("[v0] Iniciando escaneo...")
       setError(null)
       setLoading(true)
+
+      await new Promise((resolve) => setTimeout(resolve, 100))
 
       const selectedCameraId = await checkCameraSupport()
       setCameraId(selectedCameraId)
 
-      html5QrCodeRef.current = new Html5Qrcode("qr-reader")
+      const readerElement = document.getElementById("qr-reader")
+      if (!readerElement) {
+        throw new Error("Elemento del escáner no encontrado en el DOM")
+      }
+
+      console.log("[v0] Elemento del escáner encontrado, inicializando...")
+
+      if (!scannerInitialized.current) {
+        html5QrCodeRef.current = new Html5Qrcode("qr-reader")
+        scannerInitialized.current = true
+      }
 
       const config = {
         fps: 10,
         qrbox: { width: 250, height: 250 },
         aspectRatio: 1.0,
-        videoConstraints: {
-          facingMode: "environment",
-          width: { ideal: 1920 },
-          height: { ideal: 1080 },
-        },
       }
+
+      console.log("[v0] Iniciando cámara con config:", config)
 
       await html5QrCodeRef.current.start(
         selectedCameraId,
         config,
         (decodedText) => {
+          console.log("[v0] Código escaneado:", decodedText)
           onScan(decodedText)
           stopScanning()
         },
@@ -79,11 +96,13 @@ const BarcodeScanner = ({ onScan, onClose }) => {
         },
       )
 
+      console.log("[v0] Cámara iniciada exitosamente")
       setScanning(true)
       setLoading(false)
     } catch (err) {
-      console.error("Error al iniciar escáner:", err)
+      console.error("[v0] Error al iniciar escáner:", err)
       setLoading(false)
+      setScanning(false)
 
       let errorMessage = "No se pudo acceder a la cámara."
 
@@ -107,12 +126,14 @@ const BarcodeScanner = ({ onScan, onClose }) => {
   }
 
   const stopScanning = async () => {
+    console.log("[v0] Deteniendo escáner...")
     if (html5QrCodeRef.current && scanning) {
       try {
         await html5QrCodeRef.current.stop()
         html5QrCodeRef.current.clear()
+        scannerInitialized.current = false
       } catch (err) {
-        console.error("Error al detener escáner:", err)
+        console.error("[v0] Error al detener escáner:", err)
       }
     }
     setScanning(false)
@@ -130,7 +151,7 @@ const BarcodeScanner = ({ onScan, onClose }) => {
           setTorch(!torch)
         }
       } catch (err) {
-        console.error("Error al cambiar linterna:", err)
+        console.error("[v0] Error al cambiar linterna:", err)
       }
     }
   }
@@ -143,148 +164,145 @@ const BarcodeScanner = ({ onScan, onClose }) => {
         </Alert>
       )}
 
-      {!scanning && !loading ? (
-        <Box>
-          <Alert severity="info" sx={{ mb: 2 }}>
-            <Typography variant="body2" sx={{ mb: 1, fontSize: { xs: "0.875rem", sm: "0.813rem" } }}>
-              <strong>Instrucciones:</strong>
-            </Typography>
-            <Typography variant="body2" component="div" sx={{ fontSize: { xs: "0.813rem", sm: "0.75rem" } }}>
-              1. Permita el acceso a la cámara cuando se lo solicite
-              <br />
-              2. Apunte la cámara hacia el código de barras
-              <br />
-              3. Mantenga el código dentro del recuadro verde
-              <br />
-              4. El escaneo es automático
-            </Typography>
-          </Alert>
-          <Button
-            variant="contained"
-            onClick={startScanning}
-            fullWidth
-            size="large"
-            startIcon={<CameraAlt />}
-            sx={{
-              minHeight: { xs: 56, sm: 48 },
-              fontSize: { xs: "1.1rem", sm: "1rem" },
-            }}
-          >
-            Activar Cámara
-          </Button>
-        </Box>
-      ) : loading ? (
+      <Box sx={{ display: !scanning && !loading ? "block" : "none" }}>
+        <Alert severity="info" sx={{ mb: 2 }}>
+          <Typography variant="body2" sx={{ mb: 1, fontSize: { xs: "0.875rem", sm: "0.813rem" } }}>
+            <strong>Instrucciones:</strong>
+          </Typography>
+          <Typography variant="body2" component="div" sx={{ fontSize: { xs: "0.813rem", sm: "0.75rem" } }}>
+            1. Permita el acceso a la cámara cuando se lo solicite
+            <br />
+            2. Apunte la cámara hacia el código de barras
+            <br />
+            3. Mantenga el código dentro del recuadro verde
+            <br />
+            4. El escaneo es automático
+          </Typography>
+        </Alert>
+        <Button
+          variant="contained"
+          onClick={startScanning}
+          fullWidth
+          size="large"
+          startIcon={<CameraAlt />}
+          sx={{
+            minHeight: { xs: 56, sm: 48 },
+            fontSize: { xs: "1.1rem", sm: "1rem" },
+          }}
+        >
+          Activar Cámara
+        </Button>
+      </Box>
+
+      {loading && (
         <Box sx={{ display: "flex", flexDirection: "column", alignItems: "center", gap: 2, py: 4 }}>
           <CircularProgress size={48} />
           <Typography variant="body1" color="text.secondary" sx={{ fontSize: { xs: "1rem", sm: "0.938rem" } }}>
             Iniciando cámara...
           </Typography>
         </Box>
-      ) : (
-        <Box>
-          <Paper
-            elevation={3}
-            sx={{
-              position: "relative",
-              mb: 2,
-              overflow: "hidden",
-              borderRadius: 2,
-              bgcolor: "black",
-            }}
-          >
-            <div
-              id="qr-reader"
-              style={{
-                width: "100%",
-                minHeight: "400px",
-                maxHeight: "500px",
-                display: "flex",
-                justifyContent: "center",
-                alignItems: "center",
-              }}
-            />
-
-            <Box
-              sx={{
-                position: "absolute",
-                top: 8,
-                right: 8,
-                display: "flex",
-                gap: 1,
-                zIndex: 10,
-              }}
-            >
-              <IconButton
-                onClick={toggleTorch}
-                sx={{
-                  bgcolor: "rgba(0,0,0,0.6)",
-                  color: "white",
-                  "&:hover": { bgcolor: "rgba(0,0,0,0.8)" },
-                  width: { xs: 48, sm: 40 },
-                  height: { xs: 48, sm: 40 },
-                }}
-              >
-                {torch ? <FlashlightOn /> : <FlashlightOff />}
-              </IconButton>
-              <IconButton
-                onClick={() => {
-                  stopScanning()
-                  onClose()
-                }}
-                sx={{
-                  bgcolor: "rgba(0,0,0,0.6)",
-                  color: "white",
-                  "&:hover": { bgcolor: "rgba(0,0,0,0.8)" },
-                  width: { xs: 48, sm: 40 },
-                  height: { xs: 48, sm: 40 },
-                }}
-              >
-                <Close />
-              </IconButton>
-            </Box>
-
-            <Box
-              sx={{
-                position: "absolute",
-                bottom: 0,
-                left: 0,
-                right: 0,
-                bgcolor: "rgba(0,0,0,0.7)",
-                color: "white",
-                py: 1.5,
-                px: 2,
-                textAlign: "center",
-              }}
-            >
-              <Typography
-                variant="body2"
-                sx={{
-                  fontSize: { xs: "1rem", sm: "0.875rem" },
-                  fontWeight: 500,
-                }}
-              >
-                📷 Escaneando... Apunte al código de barras
-              </Typography>
-            </Box>
-          </Paper>
-
-          <Button
-            variant="outlined"
-            onClick={() => {
-              stopScanning()
-              onClose()
-            }}
-            fullWidth
-            size="large"
-            sx={{
-              minHeight: { xs: 48, sm: 42 },
-              fontSize: { xs: "1rem", sm: "0.938rem" },
-            }}
-          >
-            Cancelar
-          </Button>
-        </Box>
       )}
+
+      <Box sx={{ display: scanning ? "block" : "none" }}>
+        <Paper
+          elevation={3}
+          sx={{
+            position: "relative",
+            mb: 2,
+            overflow: "hidden",
+            borderRadius: 2,
+            bgcolor: "black",
+          }}
+        >
+          <div
+            id="qr-reader"
+            style={{
+              width: "100%",
+              minHeight: "400px",
+              maxHeight: "500px",
+            }}
+          />
+
+          <Box
+            sx={{
+              position: "absolute",
+              top: 8,
+              right: 8,
+              display: "flex",
+              gap: 1,
+              zIndex: 10,
+            }}
+          >
+            <IconButton
+              onClick={toggleTorch}
+              sx={{
+                bgcolor: "rgba(0,0,0,0.6)",
+                color: "white",
+                "&:hover": { bgcolor: "rgba(0,0,0,0.8)" },
+                width: { xs: 48, sm: 40 },
+                height: { xs: 48, sm: 40 },
+              }}
+            >
+              {torch ? <FlashlightOn /> : <FlashlightOff />}
+            </IconButton>
+            <IconButton
+              onClick={() => {
+                stopScanning()
+                onClose()
+              }}
+              sx={{
+                bgcolor: "rgba(0,0,0,0.6)",
+                color: "white",
+                "&:hover": { bgcolor: "rgba(0,0,0,0.8)" },
+                width: { xs: 48, sm: 40 },
+                height: { xs: 48, sm: 40 },
+              }}
+            >
+              <Close />
+            </IconButton>
+          </Box>
+
+          <Box
+            sx={{
+              position: "absolute",
+              bottom: 0,
+              left: 0,
+              right: 0,
+              bgcolor: "rgba(0,0,0,0.7)",
+              color: "white",
+              py: 1.5,
+              px: 2,
+              textAlign: "center",
+            }}
+          >
+            <Typography
+              variant="body2"
+              sx={{
+                fontSize: { xs: "1rem", sm: "0.875rem" },
+                fontWeight: 500,
+              }}
+            >
+              📷 Escaneando... Apunte al código de barras
+            </Typography>
+          </Box>
+        </Paper>
+
+        <Button
+          variant="outlined"
+          onClick={() => {
+            stopScanning()
+            onClose()
+          }}
+          fullWidth
+          size="large"
+          sx={{
+            minHeight: { xs: 48, sm: 42 },
+            fontSize: { xs: "1rem", sm: "0.938rem" },
+          }}
+        >
+          Cancelar
+        </Button>
+      </Box>
     </Box>
   )
 }
