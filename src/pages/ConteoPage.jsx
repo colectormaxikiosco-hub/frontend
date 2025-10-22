@@ -4,7 +4,6 @@ import { useState, useEffect } from "react"
 import { useNavigate, useLocation } from "react-router-dom"
 import { useData } from "../contexts/DataContext"
 import { conteoService } from "../services/conteoService"
-import BarcodeScanner from "../components/BarcodeScanner"
 import {
   Container,
   Typography,
@@ -20,17 +19,13 @@ import {
   TextField,
   Chip,
   LinearProgress,
-  IconButton,
   Snackbar,
   Divider,
   Paper,
   TablePagination,
 } from "@mui/material"
 import {
-  QrCodeScanner,
   CheckCircle,
-  Close,
-  Keyboard,
   TrendingUp,
   TrendingDown,
   CheckCircleOutline,
@@ -46,9 +41,7 @@ const ConteoPage = () => {
   const [selectedPlantilla, setSelectedPlantilla] = useState(null)
   const [conteoActivo, setConteoActivo] = useState(null)
   const [productosConteo, setProductosConteo] = useState([])
-  const [openScanner, setOpenScanner] = useState(false)
-  const [openManualInput, setOpenManualInput] = useState(false)
-  const [codigoManual, setCodigoManual] = useState("")
+  const [searchProducto, setSearchProducto] = useState("")
   const [openCantidadDialog, setOpenCantidadDialog] = useState(false)
   const [productoActual, setProductoActual] = useState(null)
   const [cantidadReal, setCantidadReal] = useState("")
@@ -111,28 +104,10 @@ const ConteoPage = () => {
     }
   }
 
-  const handleScanCode = (codigo) => {
-    const producto = productosConteo.find((p) => p.codigo === codigo)
-
-    if (producto) {
-      setProductoActual(producto)
-      setOpenCantidadDialog(true)
-      setOpenScanner(false)
-    } else {
-      setSnackbar({
-        open: true,
-        message: "Este producto no está en la plantilla seleccionada",
-        severity: "warning",
-      })
-    }
-  }
-
-  const handleManualScan = () => {
-    if (codigoManual.trim()) {
-      handleScanCode(codigoManual.trim())
-      setCodigoManual("")
-      setOpenManualInput(false)
-    }
+  const handleProductClick = (producto) => {
+    setProductoActual(producto)
+    setCantidadReal(producto.cantidad_real !== null ? producto.cantidad_real.toString() : "")
+    setOpenCantidadDialog(true)
   }
 
   const calcularDiferencias = (cantidadReal, cantidadSistema) => {
@@ -175,8 +150,6 @@ const ConteoPage = () => {
           message: "Cantidad registrada correctamente",
           severity: "success",
         })
-
-        setTimeout(() => setOpenScanner(true), 500)
       } catch (error) {
         setSnackbar({
           open: true,
@@ -288,6 +261,11 @@ const ConteoPage = () => {
     setRowsPerPagePlantilla(Number.parseInt(event.target.value, 10))
     setPagePlantilla(0)
   }
+
+  const productosFiltrados = productosConteo.filter((producto) => {
+    const searchLower = searchProducto.toLowerCase()
+    return producto.nombre.toLowerCase().includes(searchLower) || producto.codigo.toLowerCase().includes(searchLower)
+  })
 
   const productosContados = productosConteo.filter((p) => p.cantidad_real !== null).length
   const totalProductos = productosConteo.length
@@ -475,28 +453,25 @@ const ConteoPage = () => {
         </CardContent>
       </Card>
 
-      <Box sx={{ display: "flex", gap: 1, mb: 3 }}>
-        <Button
-          variant="contained"
-          startIcon={<QrCodeScanner />}
-          onClick={() => setOpenScanner(true)}
-          fullWidth
-          size="large"
-          sx={{ minHeight: { xs: 56, sm: 48 }, fontSize: { xs: "1rem", sm: "0.938rem" } }}
-        >
-          Escanear
-        </Button>
-        <Button
-          variant="outlined"
-          startIcon={<Keyboard />}
-          onClick={() => setOpenManualInput(true)}
-          fullWidth
-          size="large"
-          sx={{ minHeight: { xs: 56, sm: 48 }, fontSize: { xs: "1rem", sm: "0.938rem" } }}
-        >
-          Manual
-        </Button>
-      </Box>
+      <TextField
+        fullWidth
+        placeholder="Buscar producto por nombre o código..."
+        value={searchProducto}
+        onChange={(e) => setSearchProducto(e.target.value)}
+        InputProps={{
+          startAdornment: <Search sx={{ color: "text.secondary", mr: 1 }} />,
+        }}
+        sx={{
+          mb: 3,
+          "& .MuiInputBase-root": {
+            fontSize: { xs: "1rem", sm: "0.938rem" },
+            minHeight: { xs: 56, sm: 48 },
+          },
+          "& .MuiInputBase-input": {
+            py: { xs: 2, sm: 1.5 },
+          },
+        }}
+      />
 
       <Box sx={{ display: "flex", gap: 1, mb: 2 }}>
         <Button
@@ -513,7 +488,7 @@ const ConteoPage = () => {
         </Button>
       </Box>
 
-      <Box sx={{ display: "flex", gap: 1 }}>
+      <Box sx={{ display: "flex", gap: 1, mb: 3 }}>
         <Button
           variant="outlined"
           color="warning"
@@ -543,17 +518,33 @@ const ConteoPage = () => {
       <Divider sx={{ my: 3 }} />
 
       <Typography variant="subtitle1" fontWeight="bold" gutterBottom sx={{ fontSize: { xs: "1rem", sm: "1.125rem" } }}>
-        Productos ({productosContados}/{totalProductos})
+        Productos ({productosContados}/{totalProductos}){searchProducto && ` - ${productosFiltrados.length} resultados`}
       </Typography>
 
+      {productosFiltrados.length === 0 && searchProducto && (
+        <Alert severity="info" sx={{ mb: 2 }}>
+          No se encontraron productos que coincidan con "{searchProducto}"
+        </Alert>
+      )}
+
       <Box sx={{ display: "flex", flexDirection: "column", gap: 1 }}>
-        {productosConteo.map((producto) => (
+        {productosFiltrados.map((producto) => (
           <Card
             key={producto.producto_id}
+            onClick={() => handleProductClick(producto)}
             sx={{
               bgcolor: producto.cantidad_real !== null ? "success.50" : "background.paper",
               border: producto.cantidad_real !== null ? "1px solid" : "none",
               borderColor: "success.main",
+              cursor: "pointer",
+              transition: "all 0.2s",
+              "&:hover": {
+                transform: "scale(1.01)",
+                boxShadow: 2,
+              },
+              "&:active": {
+                transform: "scale(0.99)",
+              },
             }}
           >
             <CardContent sx={{ py: { xs: 2, sm: 1.5 } }}>
@@ -670,56 +661,15 @@ const ConteoPage = () => {
       </Dialog>
 
       <Dialog
-        open={openScanner}
-        onClose={() => setOpenScanner(false)}
+        open={openCantidadDialog}
+        onClose={() => {
+          setOpenCantidadDialog(false)
+          setProductoActual(null)
+          setCantidadReal("")
+        }}
         fullWidth
         maxWidth="sm"
-        PaperProps={{
-          sx: { m: 2 },
-        }}
       >
-        <DialogTitle>
-          <Box sx={{ display: "flex", justifyContent: "space-between", alignItems: "center" }}>
-            <Typography variant="h6">Escanear Código</Typography>
-            <IconButton onClick={() => setOpenScanner(false)}>
-              <Close />
-            </IconButton>
-          </Box>
-        </DialogTitle>
-        <DialogContent>
-          <BarcodeScanner onScan={handleScanCode} onClose={() => setOpenScanner(false)} />
-        </DialogContent>
-      </Dialog>
-
-      <Dialog open={openManualInput} onClose={() => setOpenManualInput(false)} fullWidth maxWidth="sm">
-        <DialogTitle>
-          <Box sx={{ display: "flex", justifyContent: "space-between", alignItems: "center" }}>
-            <Typography variant="h6">Ingresar Código Manual</Typography>
-            <IconButton onClick={() => setOpenManualInput(false)}>
-              <Close />
-            </IconButton>
-          </Box>
-        </DialogTitle>
-        <DialogContent>
-          <TextField
-            fullWidth
-            label="Código del Producto"
-            value={codigoManual}
-            onChange={(e) => setCodigoManual(e.target.value)}
-            onKeyPress={(e) => e.key === "Enter" && handleManualScan()}
-            autoFocus
-            sx={{ mt: 2 }}
-          />
-        </DialogContent>
-        <DialogActions>
-          <Button onClick={() => setOpenManualInput(false)}>Cancelar</Button>
-          <Button onClick={handleManualScan} variant="contained" disabled={!codigoManual.trim()}>
-            Buscar
-          </Button>
-        </DialogActions>
-      </Dialog>
-
-      <Dialog open={openCantidadDialog} onClose={() => setOpenCantidadDialog(false)} fullWidth maxWidth="sm">
         <DialogTitle sx={{ fontSize: { xs: "1.125rem", sm: "1.25rem" } }}>Ingresar Cantidad Real</DialogTitle>
         <DialogContent>
           {productoActual && (
@@ -802,7 +752,11 @@ const ConteoPage = () => {
         </DialogContent>
         <DialogActions sx={{ p: 2, gap: 1 }}>
           <Button
-            onClick={() => setOpenCantidadDialog(false)}
+            onClick={() => {
+              setOpenCantidadDialog(false)
+              setProductoActual(null)
+              setCantidadReal("")
+            }}
             fullWidth
             size="large"
             sx={{ minHeight: { xs: 48, sm: 42 } }}
