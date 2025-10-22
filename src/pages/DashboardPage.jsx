@@ -17,6 +17,8 @@ import {
   Avatar,
   Divider,
   ListItemIcon,
+  useMediaQuery,
+  useTheme,
 } from "@mui/material"
 import { Home, Inventory, Description, QrCodeScanner, History, People, Logout } from "@mui/icons-material"
 
@@ -33,6 +35,9 @@ const DashboardPage = () => {
   const location = useLocation()
   const { user, logout, isAdmin } = useAuth()
   const [anchorEl, setAnchorEl] = useState(null)
+
+  const theme = useTheme()
+  const isMobile = useMediaQuery(theme.breakpoints.down("sm"))
 
   const handleMenuOpen = (event) => {
     setAnchorEl(event.currentTarget)
@@ -132,7 +137,30 @@ const DashboardPage = () => {
 
       {/* Navegación inferior */}
       <Paper sx={{ position: "fixed", bottom: 0, left: 0, right: 0, zIndex: 1000 }} elevation={3}>
-        <BottomNavigation value={getNavigationValue()} onChange={handleNavigationChange} showLabels>
+        <BottomNavigation
+          value={getNavigationValue()}
+          onChange={handleNavigationChange}
+          showLabels={!isMobile}
+          sx={{
+            height: isMobile ? 64 : 70,
+            "& .MuiBottomNavigationAction-root": {
+              minWidth: isMobile ? "auto" : 80,
+              padding: isMobile ? "6px 0" : "6px 12px",
+              "& .MuiBottomNavigationAction-label": {
+                fontSize: isMobile ? "0.65rem" : "0.75rem",
+                marginTop: isMobile ? "2px" : "4px",
+              },
+              "& .MuiSvgIcon-root": {
+                fontSize: isMobile ? "1.5rem" : "1.75rem",
+              },
+            },
+            "& .MuiBottomNavigationAction-root.Mui-selected": {
+              "& .MuiSvgIcon-root": {
+                fontSize: isMobile ? "1.75rem" : "2rem",
+              },
+            },
+          }}
+        >
           <BottomNavigationAction label="Inicio" icon={<Home />} />
           <BottomNavigationAction label="Productos" icon={<Inventory />} />
           <BottomNavigationAction label="Plantillas" icon={<Description />} />
