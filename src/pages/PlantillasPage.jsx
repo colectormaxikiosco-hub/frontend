@@ -174,8 +174,8 @@ const PlantillasPage = () => {
         p.categoria?.toLowerCase().includes(searchLower),
     )
 
-    // Limitar a 10 resultados para mejor rendimiento
-    return filtered.slice(0, 10)
+    // <CHANGE> Removida la limitación de 10 resultados para mostrar todos los productos que coincidan
+    return filtered
   }
 
   const filteredProducts = getFilteredProducts()
