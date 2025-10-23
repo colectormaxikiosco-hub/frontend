@@ -3,6 +3,8 @@
 import { useState } from "react"
 import { Routes, Route, useNavigate, useLocation } from "react-router-dom"
 import { useAuth } from "../contexts/AuthContext"
+import { useData } from "../contexts/DataContext" // Importar useData para refreshData
+import conteoService from "../services/conteoService" // Importar conteoService
 import {
   Box,
   AppBar,
@@ -41,6 +43,7 @@ const DashboardPage = () => {
   const navigate = useNavigate()
   const location = useLocation()
   const { user, logout, isAdmin } = useAuth()
+  const { refreshData } = useData() // Obtener refreshData del contexto
   const [anchorEl, setAnchorEl] = useState(null)
   const [showExitDialog, setShowExitDialog] = useState(false)
   const [pendingNavigation, setPendingNavigation] = useState(null)
@@ -109,28 +112,49 @@ const DashboardPage = () => {
   const handleCancelarConteo = async () => {
     try {
       const conteoData = localStorage.getItem("conteo_activo")
-      if (conteoData) {
-        const { conteoId } = JSON.parse(conteoData)
-        await fetch(`${import.meta.env.VITE_API_URL}/api/conteos/${conteoId}`, {
-          method: "DELETE",
-          headers: {
-            Authorization: `Bearer ${localStorage.getItem("token")}`,
-          },
-        })
+
+      if (!conteoData) {
+        console.log("[v0] No hay conteo activo en localStorage")
+        localStorage.removeItem("conteo_activo")
+        setShowExitDialog(false)
+        if (pendingNavigation) {
+          navigate(pendingNavigation)
+          setPendingNavigation(null)
+        }
+        return
       }
+
+      const { conteoId } = JSON.parse(conteoData)
+      console.log("[v0] Cancelando conteo con ID:", conteoId)
+
+      // Eliminar el conteo del backend
+      await conteoService.delete(conteoId)
+      console.log("[v0] Conteo eliminado exitosamente del backend")
+
+      // Limpiar localStorage
       localStorage.removeItem("conteo_activo")
+      console.log("[v0] localStorage limpiado")
+
+      // Actualizar la lista de conteos
+      await refreshData()
+      console.log("[v0] Datos actualizados")
+
+      // Cerrar diálogo y navegar
       setShowExitDialog(false)
       if (pendingNavigation) {
         navigate(pendingNavigation)
         setPendingNavigation(null)
       }
     } catch (error) {
-      console.error("Error al cancelar conteo:", error)
-      alert("Error al cancelar el conteo")
+      console.error("[v0] Error al cancelar conteo:", error)
+      alert("Error al cancelar el conteo. Por favor, intenta nuevamente.")
     }
   }
 
   const handleContinuarDespues = () => {
+    // El conteo ya está guardado en el backend como "en_progreso"
+    // Solo necesitamos cerrar el diálogo y navegar
+    console.log("[v0] Continuando más tarde, conteo queda en progreso")
     setShowExitDialog(false)
     if (pendingNavigation) {
       navigate(pendingNavigation)
