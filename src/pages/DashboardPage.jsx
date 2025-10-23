@@ -19,6 +19,13 @@ import {
   ListItemIcon,
   useMediaQuery,
   useTheme,
+  Dialog,
+  DialogTitle,
+  DialogContent,
+  DialogContentText,
+  DialogActions,
+  Button,
+  Alert,
 } from "@mui/material"
 import { Home, Inventory, Description, QrCodeScanner, History, People, Logout } from "@mui/icons-material"
 
@@ -35,6 +42,8 @@ const DashboardPage = () => {
   const location = useLocation()
   const { user, logout, isAdmin } = useAuth()
   const [anchorEl, setAnchorEl] = useState(null)
+  const [showExitDialog, setShowExitDialog] = useState(false)
+  const [pendingNavigation, setPendingNavigation] = useState(null)
 
   const theme = useTheme()
   const isMobile = useMediaQuery(theme.breakpoints.down("sm"))
@@ -63,6 +72,24 @@ const DashboardPage = () => {
   }
 
   const handleNavigationChange = (event, newValue) => {
+    const conteoActivo = localStorage.getItem("conteoActivo")
+    const currentPath = location.pathname
+    const isInConteo = currentPath.includes("/conteo")
+
+    if (conteoActivo && isInConteo) {
+      const routes = [
+        "/dashboard",
+        "/dashboard/productos",
+        "/dashboard/plantillas",
+        "/dashboard/conteo",
+        "/dashboard/historial",
+        "/dashboard/usuarios",
+      ]
+      setPendingNavigation(routes[newValue])
+      setShowExitDialog(true)
+      return
+    }
+
     const routes = [
       "/dashboard",
       "/dashboard/productos",
@@ -72,6 +99,43 @@ const DashboardPage = () => {
       "/dashboard/usuarios",
     ]
     navigate(routes[newValue])
+  }
+
+  const handleCancelarConteo = async () => {
+    try {
+      const conteoData = localStorage.getItem("conteoActivo")
+      if (conteoData) {
+        const { conteoId } = JSON.parse(conteoData)
+        await fetch(`${import.meta.env.VITE_API_URL}/api/conteos/${conteoId}`, {
+          method: "DELETE",
+          headers: {
+            Authorization: `Bearer ${localStorage.getItem("token")}`,
+          },
+        })
+      }
+      localStorage.removeItem("conteoActivo")
+      setShowExitDialog(false)
+      if (pendingNavigation) {
+        navigate(pendingNavigation)
+        setPendingNavigation(null)
+      }
+    } catch (error) {
+      console.error("Error al cancelar conteo:", error)
+      alert("Error al cancelar el conteo")
+    }
+  }
+
+  const handleContinuarDespues = () => {
+    setShowExitDialog(false)
+    if (pendingNavigation) {
+      navigate(pendingNavigation)
+      setPendingNavigation(null)
+    }
+  }
+
+  const handleCancelarNavegacion = () => {
+    setShowExitDialog(false)
+    setPendingNavigation(null)
   }
 
   const appBarHeight = isMobile ? 56 : 64
@@ -93,7 +157,6 @@ const DashboardPage = () => {
         </Toolbar>
       </AppBar>
 
-      {/* Menu de usuario */}
       <Menu
         anchorEl={anchorEl}
         open={Boolean(anchorEl)}
@@ -182,6 +245,60 @@ const DashboardPage = () => {
           {isAdmin() && <BottomNavigationAction label="Usuarios" icon={<People />} />}
         </BottomNavigation>
       </Paper>
+
+      <Dialog
+        open={showExitDialog}
+        onClose={handleCancelarNavegacion}
+        maxWidth="sm"
+        fullWidth
+        PaperProps={{
+          sx: {
+            mx: 2,
+            borderRadius: 2,
+          },
+        }}
+      >
+        <DialogTitle sx={{ fontSize: { xs: "1.1rem", sm: "1.25rem" } }}>Conteo en Progreso</DialogTitle>
+        <DialogContent>
+          <Alert severity="warning" sx={{ mb: 2 }}>
+            Tienes un conteo en progreso. ¿Qué deseas hacer?
+          </Alert>
+          <DialogContentText sx={{ fontSize: { xs: "0.9rem", sm: "1rem" }, mb: 2 }}>
+            <strong>Continuar más tarde:</strong> El conteo se guardará como pendiente y podrás continuarlo después
+            desde el historial.
+          </DialogContentText>
+          <DialogContentText sx={{ fontSize: { xs: "0.9rem", sm: "1rem" } }}>
+            <strong>Cancelar conteo:</strong> Se eliminará el conteo y perderás todo el progreso realizado.
+          </DialogContentText>
+        </DialogContent>
+        <DialogActions sx={{ px: 3, pb: 2, flexDirection: { xs: "column", sm: "row" }, gap: 1 }}>
+          <Button
+            onClick={handleCancelarNavegacion}
+            variant="outlined"
+            fullWidth={isMobile}
+            sx={{ minHeight: { xs: 48, sm: 36 } }}
+          >
+            Volver al Conteo
+          </Button>
+          <Button
+            onClick={handleCancelarConteo}
+            color="error"
+            variant="outlined"
+            fullWidth={isMobile}
+            sx={{ minHeight: { xs: 48, sm: 36 } }}
+          >
+            Cancelar Conteo
+          </Button>
+          <Button
+            onClick={handleContinuarDespues}
+            variant="contained"
+            fullWidth={isMobile}
+            sx={{ minHeight: { xs: 48, sm: 36 } }}
+          >
+            Continuar Más Tarde
+          </Button>
+        </DialogActions>
+      </Dialog>
     </Box>
   )
 }
