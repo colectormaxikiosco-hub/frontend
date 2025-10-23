@@ -34,6 +34,8 @@ import {
   Search,
 } from "@mui/icons-material"
 
+const CONTEO_STORAGE_KEY = "conteo_activo"
+
 const ConteoPage = () => {
   const { plantillas, products, refreshData } = useData()
   const navigate = useNavigate()
@@ -58,17 +60,80 @@ const ConteoPage = () => {
   const [isLeavingIntentionally, setIsLeavingIntentionally] = useState(false)
 
   useEffect(() => {
-    const handleBeforeUnload = async (e) => {
-      if (conteoActivo && !isLeavingIntentionally) {
-        e.preventDefault()
-        e.returnValue = ""
+    const restaurarConteo = async () => {
+      try {
+        const conteoGuardado = localStorage.getItem(CONTEO_STORAGE_KEY)
+        if (conteoGuardado) {
+          const { conteoId, plantillaId } = JSON.parse(conteoGuardado)
 
-        // Attempt to cancel the count on force close (limited by browser)
-        try {
-          await conteoService.delete(conteoActivo.id)
-        } catch (error) {
-          console.error("Error al cancelar conteo en cierre forzado:", error)
+          setLoading(true)
+
+          // Obtener el conteo completo desde el backend
+          const conteoCompleto = await conteoService.getById(conteoId)
+
+          // Verificar que el conteo siga en progreso
+          if (conteoCompleto.estado === "en_progreso") {
+            // Buscar la plantilla correspondiente
+            const plantilla = plantillas.find((p) => p.id === plantillaId)
+
+            if (plantilla) {
+              setSelectedPlantilla(plantilla)
+              setConteoActivo(conteoCompleto)
+              setProductosConteo(conteoCompleto.productos || [])
+              setIsLeavingIntentionally(false)
+
+              setSnackbar({
+                open: true,
+                message: "Conteo restaurado correctamente",
+                severity: "success",
+              })
+            } else {
+              // Si no se encuentra la plantilla, limpiar localStorage
+              localStorage.removeItem(CONTEO_STORAGE_KEY)
+            }
+          } else {
+            // Si el conteo ya no está en progreso, limpiar localStorage
+            localStorage.removeItem(CONTEO_STORAGE_KEY)
+          }
         }
+      } catch (error) {
+        console.error("Error al restaurar conteo:", error)
+        // Si hay error, limpiar localStorage
+        localStorage.removeItem(CONTEO_STORAGE_KEY)
+        setSnackbar({
+          open: true,
+          message: "No se pudo restaurar el conteo anterior",
+          severity: "warning",
+        })
+      } finally {
+        setLoading(false)
+      }
+    }
+
+    if (plantillas.length > 0) {
+      restaurarConteo()
+    }
+  }, [plantillas])
+
+  useEffect(() => {
+    if (conteoActivo && selectedPlantilla) {
+      localStorage.setItem(
+        CONTEO_STORAGE_KEY,
+        JSON.stringify({
+          conteoId: conteoActivo.id,
+          plantillaId: selectedPlantilla.id,
+        }),
+      )
+    }
+  }, [conteoActivo, selectedPlantilla])
+
+  useEffect(() => {
+    const handleBeforeUnload = (e) => {
+      if (conteoActivo && !isLeavingIntentionally) {
+        // Solo mostrar advertencia, NO cancelar el conteo
+        e.preventDefault()
+        e.returnValue = "Tiene un conteo en progreso. ¿Está seguro de que desea salir?"
+        return e.returnValue
       }
     }
 
@@ -83,7 +148,7 @@ const ConteoPage = () => {
     if (!conteoActivo) return
 
     const handlePopState = (e) => {
-      if (conteoActivo && !isLeavingIntentionally) {
+      if (!isLeavingIntentionally) {
         e.preventDefault()
         window.history.pushState(null, "", window.location.pathname)
         setOpenExitDialog(true)
@@ -117,6 +182,14 @@ const ConteoPage = () => {
       setProductosConteo(conteoCompleto.productos || [])
       setIsLeavingIntentionally(false)
 
+      localStorage.setItem(
+        CONTEO_STORAGE_KEY,
+        JSON.stringify({
+          conteoId: conteoCompleto.id,
+          plantillaId: plantillaToSelect.id,
+        }),
+      )
+
       setSnackbar({
         open: true,
         message: "Conteo iniciado correctamente",
@@ -132,14 +205,6 @@ const ConteoPage = () => {
       setLoading(false)
       setPlantillaToSelect(null)
     }
-  }
-
-  const handleProductClick = (producto) => {
-    setProductoActual(producto)
-    const yaContado = producto.cantidad_real !== null
-    setModoSuma(yaContado)
-    setCantidadReal("")
-    setOpenCantidadDialog(true)
   }
 
   const calcularDiferencias = (cantidadReal, cantidadSistema) => {
@@ -205,6 +270,8 @@ const ConteoPage = () => {
         setIsLeavingIntentionally(true)
         await conteoService.finalize(conteoActivo.id)
 
+        localStorage.removeItem(CONTEO_STORAGE_KEY)
+
         setSnackbar({
           open: true,
           message: "Conteo finalizado y guardado en el historial",
@@ -233,6 +300,8 @@ const ConteoPage = () => {
       setLoading(true)
       setIsLeavingIntentionally(true)
       await conteoService.delete(conteoActivo.id)
+
+      localStorage.removeItem(CONTEO_STORAGE_KEY)
 
       setSnackbar({
         open: true,
@@ -265,9 +334,11 @@ const ConteoPage = () => {
   const handleDejarPendiente = () => {
     setIsLeavingIntentionally(true)
 
+    // El conteo queda guardado en el backend como "en_progreso"
+
     setSnackbar({
       open: true,
-      message: "Conteo guardado como pendiente",
+      message: "Conteo guardado como pendiente. Puede continuarlo más tarde.",
       severity: "info",
     })
 
@@ -280,6 +351,14 @@ const ConteoPage = () => {
       navigate(pendingNavigation)
       setPendingNavigation(null)
     }
+  }
+
+  const handleProductClick = (producto) => {
+    setProductoActual(producto)
+    const yaContado = producto.cantidad_real !== null
+    setModoSuma(yaContado)
+    setCantidadReal("")
+    setOpenCantidadDialog(true)
   }
 
   const plantillasFiltradas = plantillas.filter((plantilla) =>
@@ -426,7 +505,7 @@ const ConteoPage = () => {
             <Typography
               variant="body2"
               color="text.secondary"
-              sx={{ mt: 2, fontSize: { xs: "0.813rem", sm: "0.875rem" } }}
+              sx={{ mt: 2, fontSize: { xs: "0.875rem", sm: "0.813rem" } }}
             >
               Recuerde que el objetivo del conteo es comparar el stock físico con el stock cargado en el sistema desde
               el Excel. Asegúrese de haber actualizado la lista de productos antes de continuar.
@@ -751,7 +830,7 @@ const ConteoPage = () => {
                     variant="body2"
                     color="primary"
                     fontWeight="bold"
-                    sx={{ fontSize: { xs: "0.875rem", sm: "0.938rem" }, mt: 1 }}
+                    sx={{ fontSize: { xs: "0.875rem", sm: "0.813rem" }, mt: 1 }}
                   >
                     Cantidad Actual Contada: {productoActual.cantidad_real}
                   </Typography>
