@@ -157,9 +157,12 @@ const HistorialPage = () => {
   const conteosPaginados = conteosFiltrados.slice(page * rowsPerPage, page * rowsPerPage + rowsPerPage)
 
   const handleExportarExcel = () => {
-    if (!selectedConteo || !selectedConteo.productos) return
+    if (!productosFiltrados || productosFiltrados.length === 0) {
+      alert("No hay productos para exportar con los filtros actuales")
+      return
+    }
 
-    const productosParaExportar = selectedConteo.productos.map((p) => ({
+    const productosParaExportar = productosFiltrados.map((p) => ({
       Código: p.codigo,
       Producto: p.nombre,
       Categoría: p.categoria || "Sin categoría",
@@ -175,7 +178,14 @@ const HistorialPage = () => {
     const wb = XLSX.utils.book_new()
     XLSX.utils.book_append_sheet(wb, ws, "Conteo")
 
-    const fileName = `Conteo_${selectedConteo.plantillaNombre}_${formatDate(selectedConteo.fecha_inicio).replace(/\//g, "-")}.xlsx`
+    const filtroNombre = {
+      todos: "Todos",
+      faltante: "Faltantes",
+      sobrante: "Sobrantes",
+      sin_diferencia: "SinDiferencia",
+    }[filtroTipo]
+
+    const fileName = `Conteo_${selectedConteo.plantillaNombre}_${filtroNombre}_${formatDate(selectedConteo.fecha_inicio).replace(/\//g, "-")}.xlsx`
     XLSX.writeFile(wb, fileName)
   }
 
