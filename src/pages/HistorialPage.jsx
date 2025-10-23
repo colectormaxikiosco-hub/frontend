@@ -27,10 +27,25 @@ import {
   Button,
   DialogActions,
   InputAdornment,
+  Grid,
+  ToggleButtonGroup,
+  ToggleButton,
+  Divider,
 } from "@mui/material"
-import { Close, Delete, Search, FilterList } from "@mui/icons-material"
+import {
+  Close,
+  Delete,
+  Search,
+  FilterList,
+  Download,
+  TrendingDown,
+  TrendingUp,
+  CheckCircle,
+  Assessment,
+} from "@mui/icons-material"
 import { formatDate } from "../utils/dateUtils"
 import conteoService from "../services/conteoService"
+import * as XLSX from "xlsx"
 
 const HistorialPage = () => {
   const location = useLocation()
@@ -46,6 +61,9 @@ const HistorialPage = () => {
   const [openDeleteDialog, setOpenDeleteDialog] = useState(false)
   const [conteoToDelete, setConteoToDelete] = useState(null)
   const [deleting, setDeleting] = useState(false)
+
+  const [searchProducto, setSearchProducto] = useState("")
+  const [filtroTipo, setFiltroTipo] = useState("todos")
 
   useEffect(() => {
     if (location.state?.openConteoId && conteos.length > 0) {
@@ -137,6 +155,71 @@ const HistorialPage = () => {
   })
 
   const conteosPaginados = conteosFiltrados.slice(page * rowsPerPage, page * rowsPerPage + rowsPerPage)
+
+  const handleExportarExcel = () => {
+    if (!selectedConteo || !selectedConteo.productos) return
+
+    const productosParaExportar = selectedConteo.productos.map((p) => ({
+      Código: p.codigo,
+      Producto: p.nombre,
+      Categoría: p.categoria || "Sin categoría",
+      "Cantidad Deseada": p.cantidadDeseada || 0,
+      "Cantidad Real": p.cantidadReal || 0,
+      "Cantidad Sistema": p.cantidadSistema || 0,
+      Faltante: p.faltante || 0,
+      Sobrante: p.sobrante || 0,
+      Pedido: p.pedido || 0,
+    }))
+
+    const ws = XLSX.utils.json_to_sheet(productosParaExportar)
+    const wb = XLSX.utils.book_new()
+    XLSX.utils.book_append_sheet(wb, ws, "Conteo")
+
+    const fileName = `Conteo_${selectedConteo.plantillaNombre}_${formatDate(selectedConteo.fecha_inicio).replace(/\//g, "-")}.xlsx`
+    XLSX.writeFile(wb, fileName)
+  }
+
+  const productosFiltrados =
+    selectedConteo?.productos?.filter((producto) => {
+      const matchBusqueda =
+        producto.nombre?.toLowerCase().includes(searchProducto.toLowerCase()) ||
+        producto.codigo?.toLowerCase().includes(searchProducto.toLowerCase())
+
+      let matchTipo = true
+      if (filtroTipo === "faltante") {
+        matchTipo = (producto.faltante || 0) > 0
+      } else if (filtroTipo === "sobrante") {
+        matchTipo = (producto.sobrante || 0) > 0
+      } else if (filtroTipo === "sin_diferencia") {
+        matchTipo = (producto.faltante || 0) === 0 && (producto.sobrante || 0) === 0
+      }
+
+      return matchBusqueda && matchTipo
+    }) || []
+
+  const calcularEstadisticas = () => {
+    if (!selectedConteo?.productos) return null
+
+    const totalProductos = selectedConteo.productos.length
+    const productosConFaltante = selectedConteo.productos.filter((p) => (p.faltante || 0) > 0).length
+    const productosConSobrante = selectedConteo.productos.filter((p) => (p.sobrante || 0) > 0).length
+    const productosSinDiferencia = selectedConteo.productos.filter(
+      (p) => (p.faltante || 0) === 0 && (p.sobrante || 0) === 0,
+    ).length
+    const totalFaltante = selectedConteo.productos.reduce((sum, p) => sum + (p.faltante || 0), 0)
+    const totalSobrante = selectedConteo.productos.reduce((sum, p) => sum + (p.sobrante || 0), 0)
+
+    return {
+      totalProductos,
+      productosConFaltante,
+      productosConSobrante,
+      productosSinDiferencia,
+      totalFaltante,
+      totalSobrante,
+    }
+  }
+
+  const estadisticas = calcularEstadisticas()
 
   return (
     <Container maxWidth="lg" sx={{ py: { xs: 2, sm: 3 }, pb: 10 }}>
@@ -353,21 +436,31 @@ const HistorialPage = () => {
         </DialogActions>
       </Dialog>
 
-      <Dialog open={openDialog} onClose={handleCloseDialog} fullScreen>
+      <Dialog open={openDialog} onClose={handleCloseDialog} maxWidth="xl" fullWidth>
         <DialogTitle>
           <Box sx={{ display: "flex", justifyContent: "space-between", alignItems: "center" }}>
             <Box>
-              <Typography variant="h6">{selectedConteo?.plantillaNombre}</Typography>
-              <Typography variant="caption" color="text.secondary">
-                Usuario: {selectedConteo?.usuarioNombre}
+              <Typography variant="h5" fontWeight="bold">
+                {selectedConteo?.plantillaNombre}
               </Typography>
-              <Typography variant="caption" color="text.secondary" display="block">
+              <Typography variant="body2" color="text.secondary">
+                Usuario: {selectedConteo?.usuarioNombre} • Fecha:{" "}
                 {selectedConteo && formatDate(selectedConteo.fecha_inicio)}
               </Typography>
             </Box>
-            <IconButton onClick={handleCloseDialog}>
-              <Close />
-            </IconButton>
+            <Box sx={{ display: "flex", gap: 1 }}>
+              <Button
+                variant="contained"
+                startIcon={<Download />}
+                onClick={handleExportarExcel}
+                disabled={!selectedConteo?.productos || selectedConteo.productos.length === 0}
+              >
+                Exportar Excel
+              </Button>
+              <IconButton onClick={handleCloseDialog}>
+                <Close />
+              </IconButton>
+            </Box>
           </Box>
         </DialogTitle>
         <DialogContent>
@@ -376,53 +469,229 @@ const HistorialPage = () => {
               <Typography>Cargando detalles...</Typography>
             </Box>
           ) : selectedConteo && selectedConteo.productos && selectedConteo.productos.length > 0 ? (
-            <TableContainer component={Paper}>
-              <Table size="small">
-                <TableHead>
-                  <TableRow>
-                    <TableCell>Producto</TableCell>
-                    <TableCell align="right">Deseada</TableCell>
-                    <TableCell align="right">Real</TableCell>
-                    <TableCell align="right">Sistema</TableCell>
-                    <TableCell align="right">Faltante</TableCell>
-                    <TableCell align="right">Sobrante</TableCell>
-                    <TableCell align="right">Pedido</TableCell>
-                  </TableRow>
-                </TableHead>
-                <TableBody>
-                  {selectedConteo.productos.map((producto) => {
-                    const faltante = producto.faltante || 0
-                    const sobrante = producto.sobrante || 0
-                    const pedido = producto.pedido || 0
+            <>
+              <Grid container spacing={2} sx={{ mb: 3 }}>
+                <Grid item xs={12} sm={6} md={3}>
+                  <Card sx={{ bgcolor: "primary.light", color: "primary.contrastText" }}>
+                    <CardContent>
+                      <Box sx={{ display: "flex", alignItems: "center", gap: 1 }}>
+                        <Assessment sx={{ fontSize: 40 }} />
+                        <Box>
+                          <Typography variant="h4" fontWeight="bold">
+                            {estadisticas?.totalProductos || 0}
+                          </Typography>
+                          <Typography variant="body2">Total Productos</Typography>
+                        </Box>
+                      </Box>
+                    </CardContent>
+                  </Card>
+                </Grid>
+                <Grid item xs={12} sm={6} md={3}>
+                  <Card sx={{ bgcolor: "error.light", color: "error.contrastText" }}>
+                    <CardContent>
+                      <Box sx={{ display: "flex", alignItems: "center", gap: 1 }}>
+                        <TrendingDown sx={{ fontSize: 40 }} />
+                        <Box>
+                          <Typography variant="h4" fontWeight="bold">
+                            {estadisticas?.productosConFaltante || 0}
+                          </Typography>
+                          <Typography variant="body2">Con Faltante</Typography>
+                          <Typography variant="caption">Total: {estadisticas?.totalFaltante || 0} unidades</Typography>
+                        </Box>
+                      </Box>
+                    </CardContent>
+                  </Card>
+                </Grid>
+                <Grid item xs={12} sm={6} md={3}>
+                  <Card sx={{ bgcolor: "success.light", color: "success.contrastText" }}>
+                    <CardContent>
+                      <Box sx={{ display: "flex", alignItems: "center", gap: 1 }}>
+                        <TrendingUp sx={{ fontSize: 40 }} />
+                        <Box>
+                          <Typography variant="h4" fontWeight="bold">
+                            {estadisticas?.productosConSobrante || 0}
+                          </Typography>
+                          <Typography variant="body2">Con Sobrante</Typography>
+                          <Typography variant="caption">Total: {estadisticas?.totalSobrante || 0} unidades</Typography>
+                        </Box>
+                      </Box>
+                    </CardContent>
+                  </Card>
+                </Grid>
+                <Grid item xs={12} sm={6} md={3}>
+                  <Card sx={{ bgcolor: "info.light", color: "info.contrastText" }}>
+                    <CardContent>
+                      <Box sx={{ display: "flex", alignItems: "center", gap: 1 }}>
+                        <CheckCircle sx={{ fontSize: 40 }} />
+                        <Box>
+                          <Typography variant="h4" fontWeight="bold">
+                            {estadisticas?.productosSinDiferencia || 0}
+                          </Typography>
+                          <Typography variant="body2">Sin Diferencia</Typography>
+                        </Box>
+                      </Box>
+                    </CardContent>
+                  </Card>
+                </Grid>
+              </Grid>
 
-                    return (
-                      <TableRow key={producto.productoId}>
-                        <TableCell>
-                          <Typography variant="body2" fontWeight="bold">
-                            {producto.nombre}
-                          </Typography>
-                          <Typography variant="caption" color="text.secondary">
-                            {producto.codigo}
-                          </Typography>
+              <Divider sx={{ mb: 3 }} />
+
+              <Paper sx={{ p: 2, mb: 3 }}>
+                <Grid container spacing={2} alignItems="center">
+                  <Grid item xs={12} md={6}>
+                    <TextField
+                      fullWidth
+                      size="small"
+                      placeholder="Buscar por nombre o código de producto..."
+                      value={searchProducto}
+                      onChange={(e) => setSearchProducto(e.target.value)}
+                      InputProps={{
+                        startAdornment: (
+                          <InputAdornment position="start">
+                            <Search />
+                          </InputAdornment>
+                        ),
+                      }}
+                    />
+                  </Grid>
+                  <Grid item xs={12} md={6}>
+                    <Box sx={{ display: "flex", alignItems: "center", gap: 1 }}>
+                      <FilterList />
+                      <ToggleButtonGroup
+                        value={filtroTipo}
+                        exclusive
+                        onChange={(e, newValue) => newValue && setFiltroTipo(newValue)}
+                        size="small"
+                        fullWidth
+                      >
+                        <ToggleButton value="todos">Todos</ToggleButton>
+                        <ToggleButton value="faltante">Faltante</ToggleButton>
+                        <ToggleButton value="sobrante">Sobrante</ToggleButton>
+                        <ToggleButton value="sin_diferencia">Sin Diferencia</ToggleButton>
+                      </ToggleButtonGroup>
+                    </Box>
+                  </Grid>
+                </Grid>
+                {(searchProducto || filtroTipo !== "todos") && (
+                  <Box sx={{ mt: 2 }}>
+                    <Typography variant="body2" color="text.secondary">
+                      Mostrando {productosFiltrados.length} de {selectedConteo.productos.length} productos
+                    </Typography>
+                    <Button
+                      size="small"
+                      onClick={() => {
+                        setSearchProducto("")
+                        setFiltroTipo("todos")
+                      }}
+                      sx={{ mt: 1 }}
+                    >
+                      Limpiar filtros
+                    </Button>
+                  </Box>
+                )}
+              </Paper>
+
+              {productosFiltrados.length === 0 ? (
+                <Alert severity="info">No se encontraron productos con los filtros aplicados</Alert>
+              ) : (
+                <TableContainer component={Paper} sx={{ maxHeight: 500 }}>
+                  <Table stickyHeader>
+                    <TableHead>
+                      <TableRow>
+                        <TableCell sx={{ fontWeight: "bold", bgcolor: "grey.100" }}>Código</TableCell>
+                        <TableCell sx={{ fontWeight: "bold", bgcolor: "grey.100" }}>Producto</TableCell>
+                        <TableCell sx={{ fontWeight: "bold", bgcolor: "grey.100" }}>Categoría</TableCell>
+                        <TableCell align="right" sx={{ fontWeight: "bold", bgcolor: "grey.100" }}>
+                          Deseada
                         </TableCell>
-                        <TableCell align="right">{producto.cantidadDeseada || 0}</TableCell>
-                        <TableCell align="right">{producto.cantidadReal || 0}</TableCell>
-                        <TableCell align="right">{producto.cantidadSistema || 0}</TableCell>
-                        <TableCell align="right" sx={{ color: faltante > 0 ? "error.main" : "inherit" }}>
-                          {faltante}
+                        <TableCell align="right" sx={{ fontWeight: "bold", bgcolor: "grey.100" }}>
+                          Real
                         </TableCell>
-                        <TableCell align="right" sx={{ color: sobrante > 0 ? "success.main" : "inherit" }}>
-                          {sobrante}
+                        <TableCell align="right" sx={{ fontWeight: "bold", bgcolor: "grey.100" }}>
+                          Sistema
                         </TableCell>
-                        <TableCell align="right" sx={{ color: pedido > 0 ? "warning.main" : "inherit" }}>
-                          {pedido}
+                        <TableCell align="right" sx={{ fontWeight: "bold", bgcolor: "grey.100" }}>
+                          Faltante
+                        </TableCell>
+                        <TableCell align="right" sx={{ fontWeight: "bold", bgcolor: "grey.100" }}>
+                          Sobrante
+                        </TableCell>
+                        <TableCell align="right" sx={{ fontWeight: "bold", bgcolor: "grey.100" }}>
+                          Pedido
                         </TableCell>
                       </TableRow>
-                    )
-                  })}
-                </TableBody>
-              </Table>
-            </TableContainer>
+                    </TableHead>
+                    <TableBody>
+                      {productosFiltrados.map((producto) => {
+                        const faltante = producto.faltante || 0
+                        const sobrante = producto.sobrante || 0
+                        const pedido = producto.pedido || 0
+
+                        return (
+                          <TableRow
+                            key={producto.productoId}
+                            sx={{
+                              "&:hover": { bgcolor: "action.hover" },
+                              bgcolor: faltante > 0 ? "error.lighter" : sobrante > 0 ? "success.lighter" : "inherit",
+                            }}
+                          >
+                            <TableCell>
+                              <Typography variant="body2" fontFamily="monospace">
+                                {producto.codigo}
+                              </Typography>
+                            </TableCell>
+                            <TableCell>
+                              <Typography variant="body2" fontWeight="medium">
+                                {producto.nombre}
+                              </Typography>
+                            </TableCell>
+                            <TableCell>
+                              <Chip label={producto.categoria || "Sin categoría"} size="small" variant="outlined" />
+                            </TableCell>
+                            <TableCell align="right">
+                              <Typography variant="body2">{producto.cantidadDeseada || 0}</Typography>
+                            </TableCell>
+                            <TableCell align="right">
+                              <Typography variant="body2" fontWeight="bold">
+                                {producto.cantidadReal || 0}
+                              </Typography>
+                            </TableCell>
+                            <TableCell align="right">
+                              <Typography variant="body2">{producto.cantidadSistema || 0}</Typography>
+                            </TableCell>
+                            <TableCell align="right">
+                              <Chip
+                                label={faltante}
+                                size="small"
+                                color={faltante > 0 ? "error" : "default"}
+                                sx={{ fontWeight: "bold" }}
+                              />
+                            </TableCell>
+                            <TableCell align="right">
+                              <Chip
+                                label={sobrante}
+                                size="small"
+                                color={sobrante > 0 ? "success" : "default"}
+                                sx={{ fontWeight: "bold" }}
+                              />
+                            </TableCell>
+                            <TableCell align="right">
+                              <Chip
+                                label={pedido}
+                                size="small"
+                                color={pedido > 0 ? "warning" : "default"}
+                                sx={{ fontWeight: "bold" }}
+                              />
+                            </TableCell>
+                          </TableRow>
+                        )
+                      })}
+                    </TableBody>
+                  </Table>
+                </TableContainer>
+              )}
+            </>
           ) : (
             <Alert severity="info">No hay productos en este conteo</Alert>
           )}
