@@ -335,6 +335,7 @@ const ConteoPage = () => {
     setIsLeavingIntentionally(true)
 
     // El conteo queda guardado en el backend como "en_progreso"
+    // NO eliminamos de localStorage para que pueda restaurarse después
 
     setSnackbar({
       open: true,

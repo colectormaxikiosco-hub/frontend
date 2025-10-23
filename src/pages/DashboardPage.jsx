@@ -61,6 +61,10 @@ const DashboardPage = () => {
     navigate("/login", { replace: true })
   }
 
+  const handleCancelarNavegacion = () => {
+    setShowExitDialog(false)
+  }
+
   const getNavigationValue = () => {
     const path = location.pathname
     if (path.includes("/productos")) return 1
@@ -72,7 +76,7 @@ const DashboardPage = () => {
   }
 
   const handleNavigationChange = (event, newValue) => {
-    const conteoActivo = localStorage.getItem("conteoActivo")
+    const conteoActivo = localStorage.getItem("conteo_activo") // Cambiado de "conteoActivo" a "conteo_activo"
     const currentPath = location.pathname
     const isInConteo = currentPath.includes("/conteo")
 
@@ -82,14 +86,15 @@ const DashboardPage = () => {
         "/dashboard/productos",
         "/dashboard/plantillas",
         "/dashboard/conteo",
-        "/dashboard/historial",
         "/dashboard/usuarios",
+        "/dashboard/historial",
       ]
       setPendingNavigation(routes[newValue])
       setShowExitDialog(true)
-      return
+      return // No navegar hasta que el usuario decida
     }
 
+    // Si no hay conteo activo o no está en conteo, navegar normalmente
     const routes = [
       "/dashboard",
       "/dashboard/productos",
@@ -103,7 +108,7 @@ const DashboardPage = () => {
 
   const handleCancelarConteo = async () => {
     try {
-      const conteoData = localStorage.getItem("conteoActivo")
+      const conteoData = localStorage.getItem("conteo_activo")
       if (conteoData) {
         const { conteoId } = JSON.parse(conteoData)
         await fetch(`${import.meta.env.VITE_API_URL}/api/conteos/${conteoId}`, {
@@ -113,7 +118,7 @@ const DashboardPage = () => {
           },
         })
       }
-      localStorage.removeItem("conteoActivo")
+      localStorage.removeItem("conteo_activo")
       setShowExitDialog(false)
       if (pendingNavigation) {
         navigate(pendingNavigation)
@@ -131,11 +136,6 @@ const DashboardPage = () => {
       navigate(pendingNavigation)
       setPendingNavigation(null)
     }
-  }
-
-  const handleCancelarNavegacion = () => {
-    setShowExitDialog(false)
-    setPendingNavigation(null)
   }
 
   const appBarHeight = isMobile ? 56 : 64
