@@ -74,10 +74,12 @@ const DashboardPage = () => {
     navigate(routes[newValue])
   }
 
+  const appBarHeight = isMobile ? 56 : 64
+  const bottomNavHeight = isMobile ? 64 : 70
+
   return (
-    <Box sx={{ display: "flex", flexDirection: "column", height: "100vh" }}>
-      {/* Header */}
-      <AppBar position="static" elevation={2}>
+    <Box sx={{ display: "flex", flexDirection: "column", minHeight: "100vh" }}>
+      <AppBar position="fixed" elevation={2} sx={{ top: 0, zIndex: theme.zIndex.appBar }}>
         <Toolbar>
           <Inventory sx={{ mr: 2 }} />
           <Typography variant="h6" component="div" sx={{ flexGrow: 1 }}>
@@ -116,13 +118,15 @@ const DashboardPage = () => {
         </MenuItem>
       </Menu>
 
-      {/* Contenido principal */}
       <Box
+        component="main"
         sx={{
           flexGrow: 1,
           overflow: "auto",
           backgroundColor: "#f5f5f5",
-          pb: 8,
+          pt: `${appBarHeight}px`,
+          pb: `${bottomNavHeight + 8}px`,
+          minHeight: "100vh",
         }}
       >
         <Routes>
@@ -135,20 +139,29 @@ const DashboardPage = () => {
         </Routes>
       </Box>
 
-      {/* Navegación inferior */}
-      <Paper sx={{ position: "fixed", bottom: 0, left: 0, right: 0, zIndex: 1000 }} elevation={3}>
+      <Paper
+        sx={{
+          position: "fixed",
+          bottom: 0,
+          left: 0,
+          right: 0,
+          zIndex: theme.zIndex.appBar,
+        }}
+        elevation={3}
+      >
         <BottomNavigation
           value={getNavigationValue()}
           onChange={handleNavigationChange}
           showLabels={!isMobile}
           sx={{
-            height: isMobile ? 64 : 70,
+            height: bottomNavHeight,
             "& .MuiBottomNavigationAction-root": {
               minWidth: isMobile ? "auto" : 80,
               padding: isMobile ? "6px 0" : "6px 12px",
               "& .MuiBottomNavigationAction-label": {
                 fontSize: isMobile ? "0.65rem" : "0.75rem",
                 marginTop: isMobile ? "2px" : "4px",
+                display: isMobile ? "none" : "block",
               },
               "& .MuiSvgIcon-root": {
                 fontSize: isMobile ? "1.5rem" : "1.75rem",
