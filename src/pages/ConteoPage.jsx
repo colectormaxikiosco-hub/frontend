@@ -45,6 +45,7 @@ const ConteoPage = () => {
   const [openCantidadDialog, setOpenCantidadDialog] = useState(false)
   const [productoActual, setProductoActual] = useState(null)
   const [cantidadReal, setCantidadReal] = useState("")
+  const [modoSuma, setModoSuma] = useState(false)
   const [loading, setLoading] = useState(false)
   const [snackbar, setSnackbar] = useState({ open: false, message: "", severity: "success" })
   const [openExitDialog, setOpenExitDialog] = useState(false)
@@ -66,7 +67,7 @@ const ConteoPage = () => {
         try {
           await conteoService.delete(conteoActivo.id)
         } catch (error) {
-          console.error("[v0] Error al cancelar conteo en cierre forzado:", error)
+          console.error("Error al cancelar conteo en cierre forzado:", error)
         }
       }
     }
@@ -135,7 +136,9 @@ const ConteoPage = () => {
 
   const handleProductClick = (producto) => {
     setProductoActual(producto)
-    setCantidadReal(producto.cantidad_real !== null ? producto.cantidad_real.toString() : "")
+    const yaContado = producto.cantidad_real !== null
+    setModoSuma(yaContado)
+    setCantidadReal("")
     setOpenCantidadDialog(true)
   }
 
@@ -154,17 +157,18 @@ const ConteoPage = () => {
     if (productoActual && cantidadReal !== "") {
       try {
         setLoading(true)
-        const cantidad = Number(cantidadReal) || 0
+        const cantidadIngresada = Number(cantidadReal) || 0
+        const cantidadFinal = modoSuma ? (productoActual.cantidad_real || 0) + cantidadIngresada : cantidadIngresada
 
-        await conteoService.updateProductQuantity(conteoActivo.id, productoActual.producto_id, cantidad)
+        await conteoService.updateProductQuantity(conteoActivo.id, productoActual.producto_id, cantidadFinal)
 
         setProductosConteo((prev) =>
           prev.map((p) =>
             p.producto_id === productoActual.producto_id
               ? {
                   ...p,
-                  cantidad_real: cantidad,
-                  ...calcularDiferencias(cantidad, p.cantidad_sistema),
+                  cantidad_real: cantidadFinal,
+                  ...calcularDiferencias(cantidadFinal, p.cantidad_sistema),
                 }
               : p,
           ),
@@ -173,10 +177,13 @@ const ConteoPage = () => {
         setOpenCantidadDialog(false)
         setProductoActual(null)
         setCantidadReal("")
+        setModoSuma(false)
 
         setSnackbar({
           open: true,
-          message: "Cantidad registrada correctamente",
+          message: modoSuma
+            ? `Cantidad agregada correctamente. Total: ${cantidadFinal}`
+            : "Cantidad registrada correctamente",
           severity: "success",
         })
       } catch (error) {
@@ -699,14 +706,23 @@ const ConteoPage = () => {
           setOpenCantidadDialog(false)
           setProductoActual(null)
           setCantidadReal("")
+          setModoSuma(false)
         }}
         fullWidth
         maxWidth="sm"
       >
-        <DialogTitle sx={{ fontSize: { xs: "1.125rem", sm: "1.25rem" } }}>Ingresar Cantidad Real</DialogTitle>
+        <DialogTitle sx={{ fontSize: { xs: "1.125rem", sm: "1.25rem" } }}>
+          {modoSuma ? "Agregar Cantidad" : "Ingresar Cantidad Real"}
+        </DialogTitle>
         <DialogContent>
           {productoActual && (
             <Box sx={{ mt: 1 }}>
+              {modoSuma && (
+                <Alert severity="info" sx={{ mb: 2 }}>
+                  Este producto ya tiene una cantidad registrada. La cantidad que ingrese se sumará al total existente.
+                </Alert>
+              )}
+
               <Paper sx={{ p: { xs: 2.5, sm: 2 }, mb: 2, bgcolor: "primary.50" }}>
                 <Typography
                   variant="subtitle1"
@@ -730,17 +746,32 @@ const ConteoPage = () => {
                 >
                   Stock en Sistema: {productoActual.cantidad_sistema}
                 </Typography>
+                {modoSuma && (
+                  <Typography
+                    variant="body2"
+                    color="primary"
+                    fontWeight="bold"
+                    sx={{ fontSize: { xs: "0.875rem", sm: "0.938rem" }, mt: 1 }}
+                  >
+                    Cantidad Actual Contada: {productoActual.cantidad_real}
+                  </Typography>
+                )}
               </Paper>
 
               <TextField
                 fullWidth
-                label="Cantidad Real"
+                label={modoSuma ? "Cantidad a Agregar" : "Cantidad Real"}
                 type="number"
                 value={cantidadReal}
                 onChange={(e) => setCantidadReal(e.target.value)}
                 onFocus={(e) => e.target.select()}
                 autoFocus
                 inputProps={{ min: 0, inputMode: "numeric" }}
+                helperText={
+                  modoSuma && cantidadReal
+                    ? `Total después de agregar: ${(productoActual.cantidad_real || 0) + (Number(cantidadReal) || 0)}`
+                    : ""
+                }
                 sx={{
                   "& .MuiInputBase-input": {
                     fontSize: { xs: "1.125rem", sm: "1rem" },
@@ -752,34 +783,43 @@ const ConteoPage = () => {
                 }}
               />
 
-              {diferenciasActuales && (
-                <Box sx={{ mt: 2, display: "flex", gap: 1, flexWrap: "wrap" }}>
-                  {diferenciasActuales.faltante > 0 && (
-                    <Chip
-                      icon={<TrendingDown />}
-                      label={`Faltante: ${diferenciasActuales.faltante}`}
-                      color="error"
-                      sx={{ fontSize: { xs: "0.875rem", sm: "0.813rem" } }}
-                    />
-                  )}
-                  {diferenciasActuales.sobrante > 0 && (
-                    <Chip
-                      icon={<TrendingUp />}
-                      label={`Sobrante: ${diferenciasActuales.sobrante}`}
-                      color="warning"
-                      sx={{ fontSize: { xs: "0.875rem", sm: "0.813rem" } }}
-                    />
-                  )}
-                  {diferenciasActuales.faltante === 0 && diferenciasActuales.sobrante === 0 && (
-                    <Chip
-                      icon={<CheckCircleOutline />}
-                      label="Coincide con el sistema"
-                      color="success"
-                      sx={{ fontSize: { xs: "0.875rem", sm: "0.813rem" } }}
-                    />
-                  )}
-                </Box>
-              )}
+              {cantidadReal !== "" &&
+                (() => {
+                  const cantidadIngresada = Number(cantidadReal) || 0
+                  const cantidadFinal = modoSuma
+                    ? (productoActual.cantidad_real || 0) + cantidadIngresada
+                    : cantidadIngresada
+                  const difs = calcularDiferencias(cantidadFinal, productoActual.cantidad_sistema)
+
+                  return (
+                    <Box sx={{ mt: 2, display: "flex", gap: 1, flexWrap: "wrap" }}>
+                      {difs.faltante > 0 && (
+                        <Chip
+                          icon={<TrendingDown />}
+                          label={`Faltante: ${difs.faltante}`}
+                          color="error"
+                          sx={{ fontSize: { xs: "0.875rem", sm: "0.813rem" } }}
+                        />
+                      )}
+                      {difs.sobrante > 0 && (
+                        <Chip
+                          icon={<TrendingUp />}
+                          label={`Sobrante: ${difs.sobrante}`}
+                          color="warning"
+                          sx={{ fontSize: { xs: "0.875rem", sm: "0.813rem" } }}
+                        />
+                      )}
+                      {difs.faltante === 0 && difs.sobrante === 0 && (
+                        <Chip
+                          icon={<CheckCircleOutline />}
+                          label="Coincide con el sistema"
+                          color="success"
+                          sx={{ fontSize: { xs: "0.875rem", sm: "0.813rem" } }}
+                        />
+                      )}
+                    </Box>
+                  )
+                })()}
             </Box>
           )}
         </DialogContent>
@@ -789,6 +829,7 @@ const ConteoPage = () => {
               setOpenCantidadDialog(false)
               setProductoActual(null)
               setCantidadReal("")
+              setModoSuma(false)
             }}
             fullWidth
             size="large"
@@ -804,7 +845,7 @@ const ConteoPage = () => {
             size="large"
             sx={{ minHeight: { xs: 48, sm: 42 } }}
           >
-            Guardar
+            {modoSuma ? "Agregar" : "Guardar"}
           </Button>
         </DialogActions>
       </Dialog>
