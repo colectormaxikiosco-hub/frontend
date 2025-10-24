@@ -22,6 +22,7 @@ import {
   InputAdornment,
   Paper,
   TablePagination,
+  CircularProgress,
 } from "@mui/material"
 import { Add, Edit, Delete, Search, Close } from "@mui/icons-material"
 
@@ -43,6 +44,7 @@ const PlantillasPage = () => {
   const [tempCantidad, setTempCantidad] = useState({})
   const [showWarningDialog, setShowWarningDialog] = useState(false)
   const [warningMessage, setWarningMessage] = useState("")
+  const [loading, setLoading] = useState(false)
 
   const handleTempCantidadChange = (productId, value) => {
     setTempCantidad({ ...tempCantidad, [productId]: value })
@@ -107,7 +109,7 @@ const PlantillasPage = () => {
     setSelectedProducts([])
   }
 
-  const handleSave = () => {
+  const handleSave = async () => {
     console.log("[v0] handleSave - selectedProducts:", selectedProducts)
 
     const hasInvalidProducts = selectedProducts.some((p) => !p.cantidadDeseada || p.cantidadDeseada <= 0)
@@ -125,15 +127,23 @@ const PlantillasPage = () => {
     console.log("[v0] handleSave - plantillaData:", plantillaData)
     console.log("[v0] handleSave - editingPlantilla:", editingPlantilla)
 
-    if (editingPlantilla) {
-      updatePlantilla(editingPlantilla.id, plantillaData)
-    } else {
-      addPlantilla(plantillaData)
+    try {
+      setLoading(true)
+      if (editingPlantilla) {
+        await updatePlantilla(editingPlantilla.id, plantillaData)
+      } else {
+        await addPlantilla(plantillaData)
+      }
+      handleCloseDialog()
+    } catch (error) {
+      console.error("Error al guardar plantilla:", error)
+      alert("Error al guardar la plantilla")
+    } finally {
+      setLoading(false)
     }
-    handleCloseDialog()
   }
 
-  const handleDelete = (id) => {
+  const handleDelete = async (id) => {
     if (isPlantillaEnUso(id)) {
       const plantilla = plantillas.find((p) => p.id === id)
       setWarningMessage(
@@ -144,7 +154,15 @@ const PlantillasPage = () => {
     }
 
     if (window.confirm("¿Está seguro de eliminar esta plantilla?")) {
-      deletePlantilla(id)
+      try {
+        setLoading(true)
+        await deletePlantilla(id)
+      } catch (error) {
+        console.error("Error al eliminar plantilla:", error)
+        alert("Error al eliminar la plantilla")
+      } finally {
+        setLoading(false)
+      }
     }
   }
 
@@ -208,6 +226,28 @@ const PlantillasPage = () => {
 
   return (
     <Container maxWidth="lg" sx={{ py: { xs: 2, sm: 3 }, pb: 10 }}>
+      {loading && (
+        <Box
+          sx={{
+            position: "fixed",
+            top: 0,
+            left: 0,
+            right: 0,
+            bottom: 0,
+            bgcolor: "rgba(0, 0, 0, 0.5)",
+            display: "flex",
+            alignItems: "center",
+            justifyContent: "center",
+            zIndex: 9999,
+          }}
+        >
+          <Paper sx={{ p: 3, display: "flex", flexDirection: "column", alignItems: "center", gap: 2 }}>
+            <CircularProgress size={48} />
+            <Typography variant="body1">Procesando...</Typography>
+          </Paper>
+        </Box>
+      )}
+
       <Box sx={{ mb: { xs: 2, sm: 3 } }}>
         <Typography variant="h5" fontWeight="bold" gutterBottom sx={{ fontSize: { xs: "1.25rem", sm: "1.5rem" } }}>
           Plantillas
@@ -332,7 +372,6 @@ const PlantillasPage = () => {
         </>
       )}
 
-      {/* Dialog para crear/editar plantilla */}
       <Dialog open={openDialog} onClose={handleCloseDialog} maxWidth="md" fullWidth>
         <DialogTitle>
           <Box sx={{ display: "flex", justifyContent: "space-between", alignItems: "center" }}>
@@ -422,7 +461,7 @@ const PlantillasPage = () => {
           </Box>
         </DialogContent>
         <DialogActions sx={{ p: 2, gap: 1 }}>
-          <Button onClick={handleCloseDialog} fullWidth variant="outlined">
+          <Button onClick={handleCloseDialog} fullWidth variant="outlined" disabled={loading}>
             Cancelar
           </Button>
           <Button
@@ -430,17 +469,17 @@ const PlantillasPage = () => {
             variant="contained"
             fullWidth
             disabled={
+              loading ||
               !formData.nombre ||
               selectedProducts.length === 0 ||
               selectedProducts.some((p) => !p.cantidadDeseada || p.cantidadDeseada <= 0)
             }
           >
-            {editingPlantilla ? "Actualizar" : "Crear"} Plantilla
+            {loading ? <CircularProgress size={24} /> : editingPlantilla ? "Actualizar" : "Crear"} Plantilla
           </Button>
         </DialogActions>
       </Dialog>
 
-      {/* Dialog para seleccionar productos */}
       <Dialog open={openProductDialog} onClose={handleCloseProductDialog} maxWidth="md" fullWidth>
         <DialogTitle>
           <Box sx={{ display: "flex", justifyContent: "space-between", alignItems: "center" }}>
