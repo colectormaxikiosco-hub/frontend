@@ -1,7 +1,7 @@
 "use client"
 
 import { useState, useEffect } from "react"
-import { useLocation } from "react-router-dom"
+import { useLocation, useNavigate } from "react-router-dom"
 import { useData } from "../contexts/DataContext"
 import {
   Container,
@@ -32,23 +32,14 @@ import {
   ToggleButton,
   Divider,
 } from "@mui/material"
-import {
-  Close,
-  Delete,
-  Search,
-  FilterList,
-  Download,
-  TrendingDown,
-  TrendingUp,
-  CheckCircle,
-  Assessment,
-} from "@mui/icons-material"
+import { Close, Delete, Search, FilterList, Download, PlayArrow } from "@mui/icons-material"
 import { formatDate } from "../utils/dateUtils"
 import conteoService from "../services/conteoService"
 import * as XLSX from "xlsx"
 
 const HistorialPage = () => {
   const location = useLocation()
+  const navigate = useNavigate()
   const { conteos, refreshData } = useData()
   const [selectedConteo, setSelectedConteo] = useState(null)
   const [openDialog, setOpenDialog] = useState(false)
@@ -187,6 +178,22 @@ const HistorialPage = () => {
 
     const fileName = `Conteo_${selectedConteo.plantillaNombre}_${filtroNombre}_${formatDate(selectedConteo.fecha_inicio).replace(/\//g, "-")}.xlsx`
     XLSX.writeFile(wb, fileName)
+  }
+
+  const handleContinuarConteo = (conteo, event) => {
+    event.stopPropagation()
+
+    // Guardar el conteo en localStorage para que ConteoPage lo restaure
+    localStorage.setItem(
+      "conteo_activo",
+      JSON.stringify({
+        conteoId: conteo.id,
+        plantillaId: conteo.plantilla_id,
+      }),
+    )
+
+    // Navegar a la página de conteo
+    navigate("/dashboard/conteo")
   }
 
   const productosFiltrados =
@@ -387,6 +394,24 @@ const HistorialPage = () => {
                                 sx={{ fontSize: { xs: "0.75rem", sm: "0.688rem" } }}
                               />
                             </Box>
+                            {conteo.estado === "en_progreso" && (
+                              <Box sx={{ mt: 2 }}>
+                                <Button
+                                  variant="contained"
+                                  color="warning"
+                                  size="small"
+                                  startIcon={<PlayArrow />}
+                                  onClick={(e) => handleContinuarConteo(conteo, e)}
+                                  fullWidth
+                                  sx={{
+                                    minHeight: { xs: 42, sm: 36 },
+                                    fontSize: { xs: "0.875rem", sm: "0.813rem" },
+                                  }}
+                                >
+                                  Continuar Conteo
+                                </Button>
+                              </Box>
+                            )}
                           </Box>
                           <IconButton
                             color="error"
@@ -485,13 +510,10 @@ const HistorialPage = () => {
                   <Card sx={{ bgcolor: "primary.light", color: "primary.contrastText" }}>
                     <CardContent>
                       <Box sx={{ display: "flex", alignItems: "center", gap: 1 }}>
-                        <Assessment sx={{ fontSize: 40 }} />
-                        <Box>
-                          <Typography variant="h4" fontWeight="bold">
-                            {estadisticas?.totalProductos || 0}
-                          </Typography>
-                          <Typography variant="body2">Total Productos</Typography>
-                        </Box>
+                        <Typography variant="h4" fontWeight="bold">
+                          {estadisticas?.totalProductos || 0}
+                        </Typography>
+                        <Typography variant="body2">Total Productos</Typography>
                       </Box>
                     </CardContent>
                   </Card>
@@ -500,14 +522,11 @@ const HistorialPage = () => {
                   <Card sx={{ bgcolor: "error.light", color: "error.contrastText" }}>
                     <CardContent>
                       <Box sx={{ display: "flex", alignItems: "center", gap: 1 }}>
-                        <TrendingDown sx={{ fontSize: 40 }} />
-                        <Box>
-                          <Typography variant="h4" fontWeight="bold">
-                            {estadisticas?.productosConFaltante || 0}
-                          </Typography>
-                          <Typography variant="body2">Con Faltante</Typography>
-                          <Typography variant="caption">Total: {estadisticas?.totalFaltante || 0} unidades</Typography>
-                        </Box>
+                        <Typography variant="h4" fontWeight="bold">
+                          {estadisticas?.productosConFaltante || 0}
+                        </Typography>
+                        <Typography variant="body2">Con Faltante</Typography>
+                        <Typography variant="caption">Total: {estadisticas?.totalFaltante || 0} unidades</Typography>
                       </Box>
                     </CardContent>
                   </Card>
@@ -516,14 +535,11 @@ const HistorialPage = () => {
                   <Card sx={{ bgcolor: "success.light", color: "success.contrastText" }}>
                     <CardContent>
                       <Box sx={{ display: "flex", alignItems: "center", gap: 1 }}>
-                        <TrendingUp sx={{ fontSize: 40 }} />
-                        <Box>
-                          <Typography variant="h4" fontWeight="bold">
-                            {estadisticas?.productosConSobrante || 0}
-                          </Typography>
-                          <Typography variant="body2">Con Sobrante</Typography>
-                          <Typography variant="caption">Total: {estadisticas?.totalSobrante || 0} unidades</Typography>
-                        </Box>
+                        <Typography variant="h4" fontWeight="bold">
+                          {estadisticas?.productosConSobrante || 0}
+                        </Typography>
+                        <Typography variant="body2">Con Sobrante</Typography>
+                        <Typography variant="caption">Total: {estadisticas?.totalSobrante || 0} unidades</Typography>
                       </Box>
                     </CardContent>
                   </Card>
@@ -532,13 +548,10 @@ const HistorialPage = () => {
                   <Card sx={{ bgcolor: "info.light", color: "info.contrastText" }}>
                     <CardContent>
                       <Box sx={{ display: "flex", alignItems: "center", gap: 1 }}>
-                        <CheckCircle sx={{ fontSize: 40 }} />
-                        <Box>
-                          <Typography variant="h4" fontWeight="bold">
-                            {estadisticas?.productosSinDiferencia || 0}
-                          </Typography>
-                          <Typography variant="body2">Sin Diferencia</Typography>
-                        </Box>
+                        <Typography variant="h4" fontWeight="bold">
+                          {estadisticas?.productosSinDiferencia || 0}
+                        </Typography>
+                        <Typography variant="body2">Sin Diferencia</Typography>
                       </Box>
                     </CardContent>
                   </Card>
