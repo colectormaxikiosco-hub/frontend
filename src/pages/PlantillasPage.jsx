@@ -26,7 +26,7 @@ import {
 import { Add, Edit, Delete, Search, Close } from "@mui/icons-material"
 
 const PlantillasPage = () => {
-  const { plantillas, products, addPlantilla, updatePlantilla, deletePlantilla } = useData()
+  const { plantillas, products, conteos, addPlantilla, updatePlantilla, deletePlantilla } = useData()
   const [searchTerm, setSearchTerm] = useState("")
   const [page, setPage] = useState(0)
   const [rowsPerPage, setRowsPerPage] = useState(10)
@@ -39,9 +39,10 @@ const PlantillasPage = () => {
     productos: [],
   })
   const [productSearch, setProductSearch] = useState("")
-  const [displayedProductsCount, setDisplayedProductsCount] = useState(10)
   const [selectedProducts, setSelectedProducts] = useState([])
   const [tempCantidad, setTempCantidad] = useState({})
+  const [showWarningDialog, setShowWarningDialog] = useState(false)
+  const [warningMessage, setWarningMessage] = useState("")
 
   const handleTempCantidadChange = (productId, value) => {
     setTempCantidad({ ...tempCantidad, [productId]: value })
@@ -64,8 +65,20 @@ const PlantillasPage = () => {
     setPage(0)
   }
 
+  const isPlantillaEnUso = (plantillaId) => {
+    return conteos.some((conteo) => conteo.plantilla_id === plantillaId && conteo.estado === "en_progreso")
+  }
+
   const handleOpenDialog = (plantilla = null) => {
     if (plantilla) {
+      if (isPlantillaEnUso(plantilla.id)) {
+        setWarningMessage(
+          `No se puede editar la plantilla "${plantilla.nombre}" porque está siendo usada en un conteo en progreso. Por favor, finaliza o cancela el conteo primero desde la sección de Historial.`,
+        )
+        setShowWarningDialog(true)
+        return
+      }
+
       setEditingPlantilla(plantilla)
       setFormData(plantilla)
       const mappedProducts = Array.isArray(plantilla.productos)
@@ -95,6 +108,8 @@ const PlantillasPage = () => {
   }
 
   const handleSave = () => {
+    console.log("[v0] handleSave - selectedProducts:", selectedProducts)
+
     const hasInvalidProducts = selectedProducts.some((p) => !p.cantidadDeseada || p.cantidadDeseada <= 0)
 
     if (hasInvalidProducts) {
@@ -107,6 +122,9 @@ const PlantillasPage = () => {
       productos: selectedProducts,
     }
 
+    console.log("[v0] handleSave - plantillaData:", plantillaData)
+    console.log("[v0] handleSave - editingPlantilla:", editingPlantilla)
+
     if (editingPlantilla) {
       updatePlantilla(editingPlantilla.id, plantillaData)
     } else {
@@ -116,6 +134,15 @@ const PlantillasPage = () => {
   }
 
   const handleDelete = (id) => {
+    if (isPlantillaEnUso(id)) {
+      const plantilla = plantillas.find((p) => p.id === id)
+      setWarningMessage(
+        `No se puede eliminar la plantilla "${plantilla?.nombre}" porque está siendo usada en un conteo en progreso. Por favor, finaliza o cancela el conteo primero desde la sección de Historial.`,
+      )
+      setShowWarningDialog(true)
+      return
+    }
+
     if (window.confirm("¿Está seguro de eliminar esta plantilla?")) {
       deletePlantilla(id)
     }
@@ -161,15 +188,6 @@ const PlantillasPage = () => {
     )
   }
 
-  const handleLoadMore = () => {
-    setDisplayedProductsCount((prev) => prev + 10)
-  }
-
-  const handleProductSearchChange = (e) => {
-    setProductSearch(e.target.value)
-    setDisplayedProductsCount(10) // Resetear a 10 cuando cambia la búsqueda
-  }
-
   const getFilteredProducts = () => {
     if (!productSearch || productSearch.trim().length < 2) {
       return []
@@ -183,12 +201,10 @@ const PlantillasPage = () => {
         p.categoria?.toLowerCase().includes(searchLower),
     )
 
-    return filtered
+    return filtered.slice(0, 10)
   }
 
   const filteredProducts = getFilteredProducts()
-  const displayedProducts = filteredProducts.slice(0, displayedProductsCount)
-  const hasMoreProducts = filteredProducts.length > displayedProductsCount
 
   return (
     <Container maxWidth="lg" sx={{ py: { xs: 2, sm: 3 }, pb: 10 }}>
@@ -316,6 +332,7 @@ const PlantillasPage = () => {
         </>
       )}
 
+      {/* Dialog para crear/editar plantilla */}
       <Dialog open={openDialog} onClose={handleCloseDialog} maxWidth="md" fullWidth>
         <DialogTitle>
           <Box sx={{ display: "flex", justifyContent: "space-between", alignItems: "center" }}>
@@ -423,6 +440,7 @@ const PlantillasPage = () => {
         </DialogActions>
       </Dialog>
 
+      {/* Dialog para seleccionar productos */}
       <Dialog open={openProductDialog} onClose={handleCloseProductDialog} maxWidth="md" fullWidth>
         <DialogTitle>
           <Box sx={{ display: "flex", justifyContent: "space-between", alignItems: "center" }}>
@@ -442,7 +460,7 @@ const PlantillasPage = () => {
               fullWidth
               placeholder="Buscar productos..."
               value={productSearch}
-              onChange={handleProductSearchChange}
+              onChange={(e) => setProductSearch(e.target.value)}
               autoFocus
               InputProps={{
                 startAdornment: (
@@ -462,9 +480,9 @@ const PlantillasPage = () => {
             ) : (
               <Box>
                 <Typography variant="body2" color="text.secondary" sx={{ mb: 1 }}>
-                  Mostrando {displayedProducts.length} de {filteredProducts.length} resultado(s)
+                  {filteredProducts.length} resultado(s) encontrado(s)
                 </Typography>
-                {displayedProducts.map((product) => {
+                {filteredProducts.map((product) => {
                   const isSelected = selectedProducts.find((p) => p.productoId === product.id)
                   return (
                     <Card key={product.id} sx={{ mb: 1, bgcolor: isSelected ? "action.selected" : "background.paper" }}>
@@ -507,13 +525,6 @@ const PlantillasPage = () => {
                     </Card>
                   )
                 })}
-                {hasMoreProducts && (
-                  <Box sx={{ display: "flex", justifyContent: "center", mt: 2 }}>
-                    <Button variant="outlined" onClick={handleLoadMore} fullWidth sx={{ maxWidth: 300 }}>
-                      Ver más ({filteredProducts.length - displayedProductsCount} restantes)
-                    </Button>
-                  </Box>
-                )}
               </Box>
             )}
           </Box>
@@ -521,6 +532,32 @@ const PlantillasPage = () => {
         <DialogActions sx={{ p: 2 }}>
           <Button onClick={handleCloseProductDialog} variant="contained" fullWidth>
             Cerrar
+          </Button>
+        </DialogActions>
+      </Dialog>
+
+      <Dialog open={showWarningDialog} onClose={() => setShowWarningDialog(false)} maxWidth="sm" fullWidth>
+        <DialogTitle>
+          <Box sx={{ display: "flex", alignItems: "center", gap: 1 }}>
+            <Alert severity="warning" sx={{ width: "100%", mb: 0 }}>
+              Plantilla en Uso
+            </Alert>
+          </Box>
+        </DialogTitle>
+        <DialogContent>
+          <Typography variant="body1" sx={{ mt: 2 }}>
+            {warningMessage}
+          </Typography>
+          <Alert severity="info" sx={{ mt: 2 }}>
+            <Typography variant="body2">
+              <strong>Sugerencia:</strong> Ve a la sección de Historial, busca el conteo en progreso y finalízalo o
+              cancélalo para poder editar esta plantilla.
+            </Typography>
+          </Alert>
+        </DialogContent>
+        <DialogActions sx={{ p: 2 }}>
+          <Button onClick={() => setShowWarningDialog(false)} variant="contained" fullWidth>
+            Entendido
           </Button>
         </DialogActions>
       </Dialog>
