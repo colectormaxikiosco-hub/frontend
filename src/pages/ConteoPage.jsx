@@ -23,6 +23,8 @@ import {
   Divider,
   Paper,
   TablePagination,
+  FormControlLabel,
+  Switch,
 } from "@mui/material"
 import {
   CheckCircle,
@@ -32,6 +34,7 @@ import {
   Cancel,
   ExitToApp,
   Search,
+  FilterList,
 } from "@mui/icons-material"
 
 const CONTEO_STORAGE_KEY = "conteo_activo"
@@ -44,6 +47,7 @@ const ConteoPage = () => {
   const [conteoActivo, setConteoActivo] = useState(null)
   const [productosConteo, setProductosConteo] = useState([])
   const [searchProducto, setSearchProducto] = useState("")
+  const [mostrarSoloPendientes, setMostrarSoloPendientes] = useState(false)
   const [openCantidadDialog, setOpenCantidadDialog] = useState(false)
   const [productoActual, setProductoActual] = useState(null)
   const [cantidadReal, setCantidadReal] = useState("")
@@ -382,11 +386,15 @@ const ConteoPage = () => {
 
   const productosFiltrados = productosConteo.filter((producto) => {
     const searchLower = searchProducto.toLowerCase()
-    return producto.nombre.toLowerCase().includes(searchLower) || producto.codigo.toLowerCase().includes(searchLower)
+    const matchesSearch =
+      producto.nombre.toLowerCase().includes(searchLower) || producto.codigo.toLowerCase().includes(searchLower)
+    const matchesPendientes = mostrarSoloPendientes ? producto.cantidad_real === null : true
+    return matchesSearch && matchesPendientes
   })
 
   const productosContados = productosConteo.filter((p) => p.cantidad_real !== null).length
   const totalProductos = productosConteo.length
+  const productosPendientes = totalProductos - productosContados
   const progreso = totalProductos > 0 ? (productosContados / totalProductos) * 100 : 0
 
   const diferenciasActuales =
@@ -580,7 +588,7 @@ const ConteoPage = () => {
           startAdornment: <Search sx={{ color: "text.secondary", mr: 1 }} />,
         }}
         sx={{
-          mb: 3,
+          mb: 2,
           "& .MuiInputBase-root": {
             fontSize: { xs: "1rem", sm: "0.938rem" },
             minHeight: { xs: 56, sm: 48 },
@@ -590,6 +598,35 @@ const ConteoPage = () => {
           },
         }}
       />
+
+      <Paper sx={{ p: 2, mb: 3, bgcolor: mostrarSoloPendientes ? "warning.50" : "background.paper" }}>
+        <Box sx={{ display: "flex", alignItems: "center", justifyContent: "space-between" }}>
+          <Box sx={{ display: "flex", alignItems: "center", gap: 1 }}>
+            <FilterList sx={{ color: "text.secondary" }} />
+            <Box>
+              <Typography variant="subtitle2" fontWeight="bold" sx={{ fontSize: { xs: "0.938rem", sm: "1rem" } }}>
+                Mostrar solo pendientes
+              </Typography>
+              <Typography variant="caption" color="text.secondary" sx={{ fontSize: { xs: "0.75rem", sm: "0.813rem" } }}>
+                {mostrarSoloPendientes
+                  ? `${productosPendientes} productos sin contar`
+                  : `${totalProductos} productos en total`}
+              </Typography>
+            </Box>
+          </Box>
+          <FormControlLabel
+            control={
+              <Switch
+                checked={mostrarSoloPendientes}
+                onChange={(e) => setMostrarSoloPendientes(e.target.checked)}
+                color="warning"
+              />
+            }
+            label=""
+            sx={{ m: 0 }}
+          />
+        </Box>
+      </Paper>
 
       <Box sx={{ mb: 3 }}>
         <Button
@@ -610,11 +647,18 @@ const ConteoPage = () => {
 
       <Typography variant="subtitle1" fontWeight="bold" gutterBottom sx={{ fontSize: { xs: "1rem", sm: "1.125rem" } }}>
         Productos ({productosContados}/{totalProductos}){searchProducto && ` - ${productosFiltrados.length} resultados`}
+        {mostrarSoloPendientes && !searchProducto && ` - ${productosFiltrados.length} pendientes`}
       </Typography>
 
       {productosFiltrados.length === 0 && searchProducto && (
         <Alert severity="info" sx={{ mb: 2 }}>
           No se encontraron productos que coincidan con "{searchProducto}"
+        </Alert>
+      )}
+
+      {productosFiltrados.length === 0 && mostrarSoloPendientes && !searchProducto && (
+        <Alert severity="success" sx={{ mb: 2 }}>
+          ¡Excelente! No hay productos pendientes por contar.
         </Alert>
       )}
 
